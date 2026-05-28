@@ -294,6 +294,24 @@ Assim a demo online funciona sem manter PostgreSQL, Service Bus ou Blob Storage 
 npm run vercel:deploy
 ```
 
+## Automacao Vercel SDK e MCP
+
+O projeto inclui automacao com `@vercel/sdk` para atualizar as variaveis de Production sem imprimir secrets:
+
+```powershell
+npm run vercel:sync-env
+```
+
+Esse comando le `backend/.env`, `backend/.env.local.admin-key`, `.vercel/project.json` e o token ja autenticado pela Vercel CLI. As variaveis sincronizadas sao `LLM_PROVIDER`, `GOOGLE_GENERATIVE_AI_API_KEY`, `GOOGLE_GENERATIVE_AI_MODEL`, `MASTRA_MODEL` e `API_KEYS`.
+
+Para iniciar o MCP local da Vercel via SDK:
+
+```powershell
+npm run vercel:mcp
+```
+
+Tambem existe `.cursor/mcp.json` apontando para o mesmo launcher. O token nao fica salvo nesse arquivo; o launcher usa `VERCEL_TOKEN` ou o login local da Vercel CLI.
+
 ## Como ligar LiteLLM depois
 
 1. Configure as variáveis de Azure OpenAI ou outro provider no seu ambiente.

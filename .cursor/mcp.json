@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "Vercel": {
+      "command": "node",
+      "args": [
+        "scripts/start-vercel-mcp.mjs"
+      ]
+    }
+  }
+}

@@ -30,12 +30,15 @@
     "azure:stop-postgres": "powershell -ExecutionPolicy Bypass -File infra/azure/stop-postgres.ps1",
     "azure:start-postgres": "powershell -ExecutionPolicy Bypass -File infra/azure/start-postgres.ps1",
     "azure:destroy-dev": "powershell -ExecutionPolicy Bypass -File infra/azure/destroy-dev.ps1 -NoWait",
-    "vercel:deploy": "vercel --prod --yes"
+    "vercel:deploy": "vercel --prod --yes",
+    "vercel:sync-env": "node scripts/sync-vercel-env.mjs",
+    "vercel:mcp": "node scripts/start-vercel-mcp.mjs"
   },
   "engines": {
     "node": ">=22.0.0"
   },
   "devDependencies": {
+    "@vercel/sdk": "^1.21.8",
     "mastra": "^1.10.2"
   }
 }

@@ -302,7 +302,8 @@ export async function registerRoutes(app: FastifyInstance, services: RouteServic
     data: governancePolicies
   }));
 
-  app.post("/api/demo/seed", async () => {
+  app.post("/api/demo/seed", async (request, reply) => {
+    if (requireRole(request, reply, services.config, ["admin"])) return;
     await seedDemoData(services.store, services.rag, services.tickets);
     return {
       data: services.store.metrics()
@@ -322,7 +323,15 @@ function requireRole(
 
   const role = getRequestRole(request);
 
-  if (role !== "anonymous" && allowedRoles.includes(role)) {
+  if (role === "anonymous") {
+    reply?.code(401).send({
+      error: "unauthorized",
+      message: "Missing or invalid x-api-key header."
+    });
+    return true;
+  }
+
+  if (allowedRoles.includes(role)) {
     return false;
   }
 

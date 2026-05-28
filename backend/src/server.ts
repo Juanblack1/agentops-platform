@@ -131,17 +131,14 @@ export async function buildServer(config: AppConfig = loadConfig()) {
       return;
     }
 
-    const publicPath =
-      request.url.startsWith("/health") ||
-      request.url.startsWith("/readiness") ||
-      request.url.startsWith("/docs") ||
-      request.url.startsWith("/documentation");
+    const apiKeyHeader = request.headers["x-api-key"];
+    const apiKey = Array.isArray(apiKeyHeader) ? apiKeyHeader[0] : apiKeyHeader;
 
-    if (publicPath) {
+    if (!apiKey) {
       return;
     }
 
-    const principal = resolveApiPrincipal(config, request.headers["x-api-key"]);
+    const principal = resolveApiPrincipal(config, apiKey);
 
     if (!principal) {
       return reply.code(401).send({

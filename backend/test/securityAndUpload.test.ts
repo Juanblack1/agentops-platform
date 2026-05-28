@@ -10,6 +10,46 @@ import { buildServer } from "../src/server";
 // Boundary IN: Fastify auth hook, route role checks and multipart upload route.
 // Boundary OUT: external identity providers and binary document parsers.
 describe("security and upload API", () => {
+  it("keeps read-only API routes public while protecting mutating routes", async () => {
+    const app = await buildServer(
+      loadConfig({
+        NODE_ENV: "test",
+        DATA_STORE: "memory",
+        API_KEYS: "operator:operator-key,reviewer:reviewer-key,admin:admin-key",
+        SEED_DEMO_DATA: "false"
+      } as NodeJS.ProcessEnv)
+    );
+
+    const system = await app.inject({
+      method: "GET",
+      url: "/api/system"
+    });
+    expect(system.statusCode).toBe(200);
+
+    const mastra = await app.inject({
+      method: "GET",
+      url: "/api/agents/mastra"
+    });
+    expect(mastra.statusCode).toBe(200);
+
+    const run = await app.inject({
+      method: "POST",
+      url: "/api/agents/support/run",
+      payload: {
+        prompt: "Sem chave nao deve consumir LLM real."
+      }
+    });
+    expect(run.statusCode).toBe(401);
+
+    const seed = await app.inject({
+      method: "POST",
+      url: "/api/demo/seed"
+    });
+    expect(seed.statusCode).toBe(401);
+
+    await app.close();
+  });
+
   it("enforces role-based API keys on sensitive endpoints", async () => {
     const app = await buildServer(
       loadConfig({

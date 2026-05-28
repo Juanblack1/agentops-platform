@@ -43,7 +43,7 @@ $outputs = az deployment group show `
 
 $registryName = $outputs.containerRegistryName.value
 $registryLoginServer = $outputs.containerRegistryLoginServer.value
-$backendImage = "$registryLoginServer/agentops-backend:$ImageTag"
+$backendImage = "$registryLoginServer/agentops/backend:$ImageTag"
 
 if (-not $registryName -or -not $registryLoginServer) {
   throw "Container Registry outputs were not found. Run infra/azure/provision.ps1 first."
@@ -51,7 +51,7 @@ if (-not $registryName -or -not $registryLoginServer) {
 
 $tags = az acr repository show-tags `
   --name $registryName `
-  --repository agentops-backend `
+  --repository agentops/backend `
   --query "[?@=='$ImageTag']" `
   --output tsv 2>$null
 

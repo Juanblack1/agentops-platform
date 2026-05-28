@@ -112,7 +112,7 @@ Container Apps is the lower-cost runtime target for this project. The template u
 
 Prerequisites:
 
-- Backend image already pushed to ACR as `agentops-backend:<tag>`.
+- Backend image already pushed to ACR as `agentops/backend:<tag>`.
 - `AGENTOPS_API_KEYS` set in your shell. Do not commit it.
 - Optional `GOOGLE_GENERATIVE_AI_API_KEY` set if deploying with `-LlmProvider google`.
 

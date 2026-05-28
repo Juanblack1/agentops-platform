@@ -8,6 +8,8 @@ param llmProvider string = 'mock'
 @secure()
 param googleGenerativeAiApiKey string = ''
 param googleGenerativeAiModel string = 'gemini-2.5-flash'
+param corsOrigins string = ''
+param enableApiDocs string = 'false'
 @secure()
 param postgresUrl string = ''
 @secure()
@@ -139,6 +141,14 @@ resource backendApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'LOG_LEVEL'
               value: 'warn'
+            }
+            {
+              name: 'ENABLE_API_DOCS'
+              value: enableApiDocs
+            }
+            {
+              name: 'CORS_ORIGINS'
+              value: corsOrigins
             }
             {
               name: 'API_KEYS'

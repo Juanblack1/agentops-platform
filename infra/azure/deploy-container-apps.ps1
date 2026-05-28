@@ -13,7 +13,10 @@ param(
 
   [Parameter(Mandatory = $false)]
   [ValidateSet("mock", "google", "litellm")]
-  [string] $LlmProvider = "mock"
+  [string] $LlmProvider = "mock",
+
+  [Parameter(Mandatory = $false)]
+  [string] $CorsOrigins = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -88,6 +91,8 @@ az deployment group create `
     backendImage=$backendImage `
     apiKeys=$apiKeys `
     llmProvider=$LlmProvider `
+    corsOrigins=$CorsOrigins `
+    enableApiDocs=false `
     googleGenerativeAiApiKey=$googleApiKey `
     postgresUrl=$postgresUrl `
     azureStorageConnectionString=$storageConnectionString `

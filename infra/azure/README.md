@@ -119,7 +119,7 @@ Prerequisites:
 ```powershell
 $env:AGENTOPS_API_KEYS="admin:<long-random-key>"
 $env:GOOGLE_GENERATIVE_AI_API_KEY="<google-ai-studio-key>"
-.\infra\azure\deploy-container-apps.ps1 -ImageTag dev -LlmProvider google
+.\infra\azure\deploy-container-apps.ps1 -ImageTag dev -LlmProvider google -CorsOrigins "https://agentops-platform-rho.vercel.app"
 ```
 
 The script reads `backend/.env.azure.generated` for Azure PostgreSQL, Blob Storage and Service Bus secrets when those values are not already set in the shell.

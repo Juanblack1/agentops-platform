@@ -1,22 +1,28 @@
 import {
   Activity,
+  AlertCircle,
   Bot,
   Boxes,
   CheckCircle2,
   ClipboardList,
   Cloud,
+  Cpu,
   Database,
+  FileUp,
   FileText,
+  Gauge,
   KeyRound,
   Play,
+  RadioTower,
   RefreshCcw,
+  Server,
   ShieldCheck,
   Siren,
   Workflow,
   XCircle
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { api } from "./api";
+import { ApiError, api } from "./api";
 import type {
   AgentDefinition,
   AgentEvaluation,
@@ -28,6 +34,7 @@ import type {
   GovernancePolicy,
   OutboxMessage,
   PlatformMetrics,
+  SystemStatus,
   Ticket
 } from "./types";
 
@@ -56,13 +63,13 @@ const emptyMetrics: PlatformMetrics = {
 };
 
 const views: Array<{ id: View; label: string; icon: typeof Activity }> = [
-  { id: "command", label: "Comando", icon: Activity },
-  { id: "knowledge", label: "RAG", icon: Database },
+  { id: "command", label: "Dashboard", icon: Activity },
+  { id: "knowledge", label: "Knowledge", icon: Database },
   { id: "tickets", label: "Tickets", icon: ClipboardList },
   { id: "agents", label: "Agentes", icon: Bot },
-  { id: "approvals", label: "Aprovar", icon: ShieldCheck },
+  { id: "approvals", label: "Aprovacoes", icon: ShieldCheck },
   { id: "audit", label: "Auditoria", icon: ShieldCheck },
-  { id: "azure", label: "Azure", icon: Cloud }
+  { id: "azure", label: "Runtime", icon: Cloud }
 ];
 
 export default function App() {
@@ -77,6 +84,7 @@ export default function App() {
   const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
   const [outboxMessages, setOutboxMessages] = useState<OutboxMessage[]>([]);
   const [policies, setPolicies] = useState<GovernancePolicy[]>([]);
+  const [system, setSystem] = useState<SystemStatus | null>(null);
   const [mastra, setMastra] = useState<{
     registeredAgents: string[];
     registeredTools: string[];
@@ -93,40 +101,53 @@ export default function App() {
   const [apiKey, setApiKey] = useState(() => api.getApiKey());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [authNotice, setAuthNotice] = useState("");
+  const [statusMessage, setStatusMessage] = useState("");
 
   async function refresh() {
     setLoading(true);
     setError("");
+    setAuthNotice("");
     try {
+      const [systemResponse, agentsResponse, mastraResponse, policiesResponse] = await Promise.all([
+        api.system(),
+        api.agents(),
+        api.mastra(),
+        api.policies()
+      ]);
+
+      setPolicies(policiesResponse.data);
+      setSystem(systemResponse.data);
+      setAgents(agentsResponse.data);
+      setMastra(mastraResponse.data);
+
+      if (systemResponse.data.authRequired && !api.getApiKey()) {
+        resetOperationalState();
+        setAuthNotice("API key exigida para dados operacionais.");
+        return;
+      }
+
       const [
         metricsResponse,
-        agentsResponse,
         documentsResponse,
         ticketsResponse,
         runsResponse,
         evaluationsResponse,
         approvalsResponse,
         auditResponse,
-        outboxResponse,
-        policiesResponse,
-        mastraResponse
-      ] =
-        await Promise.all([
-          api.metrics(),
-          api.agents(),
-          api.documents(),
-          api.tickets(),
-          api.agentRuns(),
-          api.evaluations(),
-          api.approvals(),
-          api.auditEvents(),
-          api.outbox(),
-          api.policies(),
-          api.mastra()
-        ]);
+        outboxResponse
+      ] = await Promise.all([
+        api.metrics(),
+        api.documents(),
+        api.tickets(),
+        api.agentRuns(),
+        api.evaluations(),
+        api.approvals(),
+        api.auditEvents(),
+        api.outbox()
+      ]);
 
       setMetrics(metricsResponse.data);
-      setAgents(agentsResponse.data);
       setDocuments(documentsResponse.data);
       setTickets(ticketsResponse.data);
       setRuns(runsResponse.data);
@@ -134,13 +155,28 @@ export default function App() {
       setApprovals(approvalsResponse.data);
       setAuditEvents(auditResponse.data);
       setOutboxMessages(outboxResponse.data);
-      setPolicies(policiesResponse.data);
-      setMastra(mastraResponse.data);
     } catch (cause) {
+      if (cause instanceof ApiError && (cause.status === 401 || cause.status === 403)) {
+        resetOperationalState();
+        setAuthNotice(cause.status === 401 ? "API key ausente ou invalida." : "A API key atual nao tem permissao para esta operacao.");
+        return;
+      }
+
       setError(cause instanceof Error ? cause.message : "Falha ao carregar dados.");
     } finally {
       setLoading(false);
     }
+  }
+
+  function resetOperationalState() {
+    setMetrics(emptyMetrics);
+    setDocuments([]);
+    setTickets([]);
+    setRuns([]);
+    setEvaluations([]);
+    setApprovals([]);
+    setAuditEvents([]);
+    setOutboxMessages([]);
   }
 
   useEffect(() => {
@@ -149,13 +185,30 @@ export default function App() {
 
   function saveApiKey() {
     api.setApiKey(apiKey);
+    setStatusMessage(apiKey.trim() ? "API key ativa nesta sessao." : "API key removida.");
     void refresh();
   }
 
   function clearApiKey() {
     setApiKey("");
     api.setApiKey("");
+    setStatusMessage("API key removida.");
     void refresh();
+  }
+
+  async function seedDemo() {
+    setLoading(true);
+    setError("");
+    setStatusMessage("");
+    try {
+      await api.seedDemo();
+      setStatusMessage("Dados de demonstracao carregados.");
+      await refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Falha ao carregar demonstracao.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   const criticalTickets = useMemo(() => tickets.filter((ticket) => ticket.severity === "critical").length, [tickets]);
@@ -163,6 +216,9 @@ export default function App() {
 
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#main-content">
+        Ir para o conteudo
+      </a>
       <aside className="sidebar">
         <div className="brand-mark">
           <Boxes size={22} />
@@ -182,6 +238,7 @@ export default function App() {
                 onClick={() => setActiveView(view.id)}
                 type="button"
                 title={view.label}
+                aria-current={activeView === view.id ? "page" : undefined}
               >
                 <Icon size={18} />
                 <span>{view.label}</span>
@@ -197,37 +254,69 @@ export default function App() {
         </div>
       </aside>
 
-      <main className="workspace">
+      <main className="workspace" id="main-content">
         <header className="topbar">
           <div>
-            <span className="eyebrow">Corporate AI Operations</span>
+            <span className="eyebrow">Operacao de IA corporativa</span>
             <h1>{titleFor(activeView)}</h1>
+            <p className="page-summary">{summaryFor(activeView)}</p>
           </div>
           <div className="topbar-actions">
+            <div className="connection-chip" title="Backend e provider ativo">
+              <RadioTower size={16} />
+          <span>{system ? `${system.llmProvider} / ${system.vectorStore}` : "Conectando"}</span>
+            </div>
             <label className="api-key-control">
               <KeyRound size={16} />
               <input
+                name="api-key"
                 value={apiKey}
                 onChange={(event) => setApiKey(event.target.value)}
                 placeholder="x-api-key"
                 type="password"
                 autoComplete="off"
+                aria-label="API key"
+                spellCheck={false}
               />
             </label>
-            <button className="icon-button" onClick={saveApiKey} type="button" title="Salvar API key">
+            <button className="icon-button" onClick={saveApiKey} type="button" title="Salvar API key" aria-label="Salvar API key">
               <CheckCircle2 size={18} />
             </button>
-            <button className="icon-button" onClick={clearApiKey} type="button" title="Limpar API key">
+            <button className="icon-button" onClick={clearApiKey} type="button" title="Limpar API key" aria-label="Limpar API key">
               <XCircle size={18} />
             </button>
-            <button className="icon-button" onClick={() => void refresh()} type="button" title="Atualizar">
+            <button className="secondary-button" onClick={() => void seedDemo()} type="button" disabled={loading || Boolean(system?.authRequired && !apiKey.trim())}>
+              <Database size={16} />
+              Carregar demo
+            </button>
+            <button className="icon-button" onClick={() => void refresh()} type="button" title="Atualizar" aria-label="Atualizar">
               <RefreshCcw size={18} />
             </button>
           </div>
         </header>
 
-        {error ? <div className="notice error">{error}</div> : null}
-        {loading ? <div className="notice">Sincronizando com o backend...</div> : null}
+        {error ? (
+          <div className="notice error" role="alert">
+            <AlertCircle size={18} />
+            <span>{error}</span>
+            <button type="button" onClick={() => void refresh()}>
+              Tentar novamente
+            </button>
+          </div>
+        ) : null}
+        {authNotice ? (
+          <div className="notice warning" role="status">
+            <KeyRound size={18} />
+            <span>{authNotice}</span>
+          </div>
+        ) : null}
+        {statusMessage ? (
+          <div className="notice success" role="status">
+            <CheckCircle2 size={18} />
+            <span>{statusMessage}</span>
+          </div>
+        ) : null}
+        {loading ? <LoadingState /> : null}
 
         {activeView === "command" ? (
           <CommandCenter
@@ -235,6 +324,8 @@ export default function App() {
             criticalTickets={criticalTickets}
             ticketApprovalCount={ticketApprovalCount}
             runs={runs}
+            mastra={mastra}
+            system={system}
           />
         ) : null}
         {activeView === "knowledge" ? <KnowledgeBase documents={documents} onChanged={refresh} /> : null}
@@ -262,19 +353,39 @@ function CommandCenter({
   metrics,
   criticalTickets,
   ticketApprovalCount,
-  runs
+  runs,
+  mastra,
+  system
 }: {
   metrics: PlatformMetrics;
   criticalTickets: number;
   ticketApprovalCount: number;
   runs: AgentRun[];
+  mastra: {
+    registeredAgents: string[];
+    registeredTools: string[];
+    registeredWorkflows: string[];
+    model: string;
+    mode: string;
+    studio: {
+      apiCommand: string;
+      studioCommand: string;
+      apiUrl: string;
+      studioUrl: string;
+    };
+  } | null;
+  system: SystemStatus | null;
 }) {
   return (
     <section className="view-grid">
       <div className="metric-grid">
         <Metric icon={Database} label="Documentos" value={metrics.documents} tone="green" />
         <Metric icon={ClipboardList} label="Tickets" value={metrics.tickets} tone="orange" />
-        <Metric icon={Bot} label="Qualidade" value={metrics.averageQualityScore} suffix="%" tone="blue" />
+        <Metric icon={Bot} label="Execucoes" value={metrics.agentRuns} tone="blue" />
+        <Metric icon={Gauge} label="Qualidade" value={metrics.averageQualityScore} suffix="%" tone="green" />
+        <Metric icon={Cpu} label="Latencia" value={metrics.averageLatencyMs} suffix=" ms" tone="blue" />
+        <Metric icon={Workflow} label="Traces" value={metrics.tracedRuns} tone="orange" />
+        <Metric icon={Server} label="Outbox" value={metrics.outboxPending + metrics.outboxFailed} tone="red" />
         <Metric
           icon={Siren}
           label="Pendencias"
@@ -283,6 +394,7 @@ function CommandCenter({
         />
       </div>
 
+      <div className="workspace-grid">
       <div className="panel wide">
         <div className="panel-heading">
           <div>
@@ -292,7 +404,7 @@ function CommandCenter({
           <span className="pill">{metrics.averageLatencyMs} ms media</span>
         </div>
         <div className="run-list">
-          {runs.slice(0, 5).map((run) => (
+          {runs.slice(0, 6).map((run) => (
             <article className="run-row" key={run.id}>
               <div>
                 <strong>{run.agentId}</strong>
@@ -306,8 +418,38 @@ function CommandCenter({
               <span>{run.model}</span>
             </article>
           ))}
-          {runs.length === 0 ? <EmptyState text="Nenhuma execucao registrada." /> : null}
+          {runs.length === 0 ? (
+            <EmptyState title="Nenhuma execucao" text="Execute um agente ou carregue dados de demonstracao para ver traces, contexto e avaliacao." />
+          ) : null}
         </div>
+      </div>
+
+      <div className="panel runtime-panel">
+        <div className="panel-heading">
+          <div>
+            <span className="eyebrow">Runtime</span>
+            <h2>Mastra e backend</h2>
+          </div>
+          <span className={system ? "status-dot ok" : "status-dot"} aria-label={system ? "Runtime disponivel" : "Runtime indisponivel"} />
+        </div>
+        <div className="runtime-grid">
+          <RuntimeItem label="Provider" value={system?.llmProvider ?? "Aguardando"} />
+          <RuntimeItem label="Modelo" value={system?.llmModel ?? mastra?.model ?? "Aguardando"} />
+          <RuntimeItem label="Store" value={system?.dataStore ?? "Aguardando"} />
+          <RuntimeItem label="Vector" value={system?.vectorStore ?? "Aguardando"} />
+        </div>
+        <div className="runtime-list">
+          <span>{mastra?.registeredAgents.length ?? 0} agentes</span>
+          <span>{mastra?.registeredTools.length ?? 0} tools</span>
+          <span>{mastra?.registeredWorkflows.length ?? 0} workflow</span>
+        </div>
+        {mastra ? (
+          <div className="command-block">
+            <code>{mastra.studio.apiCommand}</code>
+            <code>{mastra.studio.studioCommand}</code>
+          </div>
+        ) : null}
+      </div>
       </div>
     </section>
   );
@@ -377,15 +519,15 @@ function KnowledgeBase({ documents, onChanged }: { documents: DocumentRecord[]; 
         </div>
         <label>
           Titulo
-          <input value={title} onChange={(event) => setTitle(event.target.value)} minLength={3} required />
+          <input name="document-title" value={title} onChange={(event) => setTitle(event.target.value)} minLength={3} autoComplete="off" required />
         </label>
         <label>
           Tags
-          <input value={tags} onChange={(event) => setTags(event.target.value)} />
+          <input name="document-tags" value={tags} onChange={(event) => setTags(event.target.value)} autoComplete="off" />
         </label>
         <label>
           Classificacao
-          <select value={classification} onChange={(event) => setClassification(event.target.value as DocumentRecord["classification"])}>
+          <select name="document-classification" value={classification} onChange={(event) => setClassification(event.target.value as DocumentRecord["classification"])}>
             <option value="public">public</option>
             <option value="internal">internal</option>
             <option value="confidential">confidential</option>
@@ -394,24 +536,25 @@ function KnowledgeBase({ documents, onChanged }: { documents: DocumentRecord[]; 
         </label>
         <label>
           Conteudo
-          <textarea value={content} onChange={(event) => setContent(event.target.value)} minLength={20} required />
+          <textarea name="document-content" value={content} onChange={(event) => setContent(event.target.value)} minLength={20} autoComplete="off" required />
         </label>
         <button className="primary-button" type="submit" disabled={saving}>
           <CheckCircle2 size={18} />
-          Salvar
+          Salvar documento
         </button>
         <div className="form-divider" />
         <label>
           Arquivo .txt/.md
           <input
+            name="document-file"
             type="file"
             accept=".txt,.md,text/plain,text/markdown"
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
           />
         </label>
         <button className="secondary-button" type="button" disabled={saving || !file} onClick={() => void submitFile()}>
-          <FileText size={18} />
-          Upload
+          <FileUp size={18} />
+          Enviar arquivo
         </button>
       </form>
 
@@ -435,7 +578,9 @@ function KnowledgeBase({ documents, onChanged }: { documents: DocumentRecord[]; 
               </div>
             </article>
           ))}
-          {documents.length === 0 ? <EmptyState text="Nenhum documento cadastrado." /> : null}
+          {documents.length === 0 ? (
+            <EmptyState title="Nenhum documento" text="Adicione runbooks, politicas ou notas operacionais para alimentar o contexto RAG." />
+          ) : null}
         </div>
       </div>
     </section>
@@ -474,19 +619,19 @@ function TicketsPanel({ tickets, onChanged }: { tickets: Ticket[]; onChanged: ()
         </div>
         <label>
           Assunto
-          <input value={subject} onChange={(event) => setSubject(event.target.value)} minLength={3} required />
+          <input name="ticket-subject" value={subject} onChange={(event) => setSubject(event.target.value)} minLength={3} autoComplete="off" required />
         </label>
         <label>
           Cliente
-          <input value={customer} onChange={(event) => setCustomer(event.target.value)} minLength={2} required />
+          <input name="ticket-customer" value={customer} onChange={(event) => setCustomer(event.target.value)} minLength={2} autoComplete="organization" required />
         </label>
         <label>
           Descricao
-          <textarea value={description} onChange={(event) => setDescription(event.target.value)} minLength={10} required />
+          <textarea name="ticket-description" value={description} onChange={(event) => setDescription(event.target.value)} minLength={10} autoComplete="off" required />
         </label>
         <button className="primary-button" type="submit" disabled={saving}>
           <Play size={18} />
-          Triar
+          Triar ticket
         </button>
       </form>
 
@@ -505,7 +650,9 @@ function TicketsPanel({ tickets, onChanged }: { tickets: Ticket[]; onChanged: ()
             </div>
           </article>
         ))}
-        {tickets.length === 0 ? <EmptyState text="Nenhum ticket registrado." /> : null}
+        {tickets.length === 0 ? (
+          <EmptyState title="Nenhum ticket" text="Crie um ticket para validar classificacao, roteamento e trilha de auditoria." />
+        ) : null}
       </div>
     </section>
   );
@@ -527,6 +674,12 @@ function AgentsPanel({
   const [running, setRunning] = useState(false);
   const [latestRun, setLatestRun] = useState<AgentRun | null>(runs[0] ?? null);
   const latestEvaluation = latestRun ? evaluations.find((evaluation) => evaluation.runId === latestRun.id) : undefined;
+
+  useEffect(() => {
+    if (!latestRun && runs[0]) {
+      setLatestRun(runs[0]);
+    }
+  }, [latestRun, runs]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -560,13 +713,13 @@ function AgentsPanel({
         <div className="panel-heading">
           <div>
             <span className="eyebrow">Gateway LLM</span>
-            <h2>Console agêntico</h2>
+            <h2>Console agentico</h2>
           </div>
           <Bot size={20} />
         </div>
         <label>
           Agente
-          <select value={agentId} onChange={(event) => setAgentId(event.target.value as AgentId)}>
+          <select name="agent-id" value={agentId} onChange={(event) => setAgentId(event.target.value as AgentId)}>
             {agents.map((agent) => (
               <option key={agent.id} value={agent.id}>
                 {agent.name}
@@ -576,11 +729,11 @@ function AgentsPanel({
         </label>
         <label>
           Prompt
-          <textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} minLength={3} required />
+          <textarea name="agent-prompt" value={prompt} onChange={(event) => setPrompt(event.target.value)} minLength={3} autoComplete="off" required />
         </label>
         <button className="primary-button" type="submit" disabled={running}>
           <Play size={18} />
-          Executar
+          Executar agente
         </button>
 
         {latestRun ? (
@@ -679,7 +832,7 @@ function ApprovalsPanel({ approvals, onChanged }: { approvals: ApprovalRequest[]
                     onClick={() => void decide(approval, "approved")}
                   >
                     <CheckCircle2 size={18} />
-                    Aprovar
+                    Aprovar resposta
                   </button>
                   <button
                     className="reject-button"
@@ -688,7 +841,7 @@ function ApprovalsPanel({ approvals, onChanged }: { approvals: ApprovalRequest[]
                     onClick={() => void decide(approval, "rejected")}
                   >
                     <XCircle size={18} />
-                    Rejeitar
+                    Rejeitar resposta
                   </button>
                 </div>
               ) : (
@@ -699,7 +852,9 @@ function ApprovalsPanel({ approvals, onChanged }: { approvals: ApprovalRequest[]
               )}
             </article>
           ))}
-          {approvals.length === 0 ? <EmptyState text="Nenhuma aprovacao foi solicitada." /> : null}
+          {approvals.length === 0 ? (
+            <EmptyState title="Fila limpa" text="Execucoes com risco alto ou dados sensiveis aparecem aqui para revisao humana." />
+          ) : null}
         </div>
       </div>
     </section>
@@ -777,7 +932,7 @@ function AuditPanel({
               onClick={() => void dispatchOutbox()}
             >
               <Play size={16} />
-              Despachar
+              Despachar eventos
             </button>
           </div>
           <div className="outbox-list">
@@ -790,7 +945,7 @@ function AuditPanel({
                 <small>{message.attempts} tentativa(s)</small>
               </article>
             ))}
-            {outboxMessages.length === 0 ? <EmptyState text="Nenhuma mensagem na outbox." /> : null}
+            {outboxMessages.length === 0 ? <EmptyState title="Outbox vazia" text="Eventos de auditoria e integracao pendentes aparecem nesta fila." /> : null}
           </div>
         </div>
       </div>
@@ -906,8 +1061,32 @@ function Metric({
   );
 }
 
-function EmptyState({ text }: { text: string }) {
-  return <div className="empty-state">{text}</div>;
+function RuntimeItem({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="runtime-item">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function EmptyState({ title = "Sem dados", text }: { title?: string; text: string }) {
+  return (
+    <div className="empty-state">
+      <strong>{title}</strong>
+      <span>{text}</span>
+    </div>
+  );
+}
+
+function LoadingState() {
+  return (
+    <div className="loading-state" role="status" aria-label="Carregando dados" aria-live="polite">
+      <span />
+      <span />
+      <span />
+    </div>
+  );
 }
 
 function titleFor(view: View) {
@@ -918,9 +1097,22 @@ function titleFor(view: View) {
     agents: "Orquestracao de agentes",
     approvals: "Aprovacoes humanas",
     audit: "Governanca e auditoria",
-    azure: "Arquitetura Azure"
+    azure: "Runtime e deploy"
   };
   return titles[view];
+}
+
+function summaryFor(view: View) {
+  const summaries: Record<View, string> = {
+    command: "Visao executiva de agentes, traces, qualidade, latencia e pendencias operacionais.",
+    knowledge: "Ingestao de documentos, classificacao e preparo do contexto usado pelo RAG.",
+    tickets: "Criacao e roteamento de tickets para agentes com triagem automatizada.",
+    agents: "Console para executar agentes, revisar contexto recuperado e acompanhar avaliacao.",
+    approvals: "Fila human-in-the-loop para respostas que exigem revisao.",
+    audit: "Politicas, eventos, avaliacoes e outbox para governanca operacional.",
+    azure: "Resumo de runtime, Mastra Studio, deploy e componentes de producao."
+  };
+  return summaries[view];
 }
 
 function formatDate(value: string) {

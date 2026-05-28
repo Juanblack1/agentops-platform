@@ -1,0 +1,19 @@
+{
+  "projectId": "6637775472774445826",
+  "title": "AgentOps Platform Redesign",
+  "designSystem": {
+    "assetId": "165968588973691621",
+    "displayName": "AgentOps Product System",
+    "register": "Product",
+    "scene": "Engineering and operations leads monitor agentic AI workflows during business-critical support and governance work."
+  },
+  "screens": [
+    {
+      "id": "94c85529d634409cac92cced024b6cc3",
+      "name": "AgentOps - Enterprise Dashboard",
+      "deviceType": "DESKTOP",
+      "html": ".stitch/designs/agentops-dashboard.html",
+      "screenshot": ".stitch/designs/agentops-dashboard.png"
+    }
+  ]
+}

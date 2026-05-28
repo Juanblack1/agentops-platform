@@ -37,6 +37,6 @@ Azure DevOps can also replace images during the `KubernetesManifest@0` deploy st
 
 ## Notes
 
-- The frontend image uses relative API calls by default. Nginx proxies `/api`, `/health`, `/readiness` and `/docs` to the backend service inside the cluster.
+- The frontend image uses relative API calls by default. Nginx proxies `/api`, `/health`, `/readiness` and `/docs` to the backend service inside the cluster. API docs are disabled by default in production; set `ENABLE_API_DOCS=true` only for controlled internal environments.
 - For production, replace the `LoadBalancer` service with an ingress controller and TLS.
 - For durable Qdrant data, replace `emptyDir` with an Azure Disk-backed `PersistentVolumeClaim`.

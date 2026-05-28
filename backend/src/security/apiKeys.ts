@@ -1,4 +1,5 @@
 import type { FastifyRequest } from "fastify";
+import { createHash, timingSafeEqual } from "node:crypto";
 import type { AppConfig } from "../config/env";
 
 export type ApiRole = "operator" | "reviewer" | "admin";
@@ -19,7 +20,7 @@ export function resolveApiPrincipal(config: AppConfig, apiKeyHeader: unknown): A
     return null;
   }
 
-  if (config.API_KEY && apiKey === config.API_KEY) {
+  if (config.API_KEY && secureCompare(apiKey, config.API_KEY)) {
     return {
       role: "admin",
       source: "legacy"
@@ -27,7 +28,7 @@ export function resolveApiPrincipal(config: AppConfig, apiKeyHeader: unknown): A
   }
 
   for (const entry of parseApiKeys(config.API_KEYS)) {
-    if (entry.key === apiKey) {
+    if (secureCompare(entry.key, apiKey)) {
       return {
         role: entry.role,
         source: "mapped"
@@ -48,7 +49,7 @@ export function getRequestRole(request: FastifyRequest): ApiRole | "anonymous" {
   return "anonymous";
 }
 
-function parseApiKeys(value: string) {
+export function parseApiKeys(value: string) {
   return value
     .split(",")
     .map((entry) => entry.trim())
@@ -71,4 +72,10 @@ function parseApiKeys(value: string) {
       };
     })
     .filter((entry): entry is { role: ApiRole; key: string } => Boolean(entry));
+}
+
+function secureCompare(left: string, right: string) {
+  const leftHash = createHash("sha256").update(left).digest();
+  const rightHash = createHash("sha256").update(right).digest();
+  return timingSafeEqual(leftHash, rightHash);
 }

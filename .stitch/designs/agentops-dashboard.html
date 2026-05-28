@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AgentOps Enterprise Console</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        :root {
+            --sidebar-width: 240px;
+        }
+        body {
+            background-color: #0e1511;
+            color: #dde5dd;
+            overflow-x: hidden;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #161d19;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3c4a41;
+            border-radius: 2px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #85948a;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "outline": "#85948a",
+                        "surface-container-highest": "#2f3732",
+                        "inverse-primary": "#006c46",
+                        "secondary-fixed": "#b7efcc",
+                        "on-background": "#dde5dd",
+                        "background": "#0e1511",
+                        "secondary-fixed-dim": "#9cd3b1",
+                        "surface-container": "#1a211d",
+                        "inverse-surface": "#dde5dd",
+                        "on-primary-fixed": "#002112",
+                        "on-primary-fixed-variant": "#005234",
+                        "on-tertiary-container": "#764100",
+                        "tertiary": "#ffd4b1",
+                        "on-primary": "#003822",
+                        "on-tertiary-fixed-variant": "#6c3b00",
+                        "primary-fixed-dim": "#42e09c",
+                        "surface-bright": "#333b36",
+                        "on-tertiary-fixed": "#2e1600",
+                        "surface-dim": "#0e1511",
+                        "on-secondary": "#003822",
+                        "surface-variant": "#2f3732",
+                        "surface-container-low": "#161d19",
+                        "surface-container-high": "#242c27",
+                        "on-secondary-fixed-variant": "#1b5037",
+                        "on-error-container": "#ffdad6",
+                        "primary": "#5df6b0",
+                        "surface": "#0e1511",
+                        "on-primary-container": "#005a3a",
+                        "on-error": "#690005",
+                        "surface-tint": "#42e09c",
+                        "primary-fixed": "#65fdb6",
+                        "on-tertiary": "#4b2700",
+                        "tertiary-fixed": "#ffdcc0",
+                        "surface-container-lowest": "#09100c",
+                        "outline-variant": "#3c4a41",
+                        "error": "#ffb4ab",
+                        "error-container": "#93000a",
+                        "on-surface-variant": "#bbcabe",
+                        "tertiary-container": "#ffaf64",
+                        "secondary-container": "#1e5239",
+                        "primary-container": "#38d996",
+                        "on-surface": "#dde5dd",
+                        "on-secondary-container": "#8ec4a4",
+                        "tertiary-fixed-dim": "#ffb877",
+                        "secondary": "#9cd3b1",
+                        "on-secondary-fixed": "#002112",
+                        "inverse-on-surface": "#2b322d"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "sidebar-width": "240px",
+                        "rail-width": "64px",
+                        "gutter": "12px",
+                        "margin": "16px",
+                        "base": "4px"
+                    },
+                    "fontFamily": {
+                        "label-sm": ["JetBrains Mono"],
+                        "code-xs": ["JetBrains Mono"],
+                        "headline-md": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
+                        "code-xs": ["11px", {"lineHeight": "14px", "fontWeight": "400"}],
+                        "headline-md": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                        "headline-lg": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="font-body-md text-body-md bg-surface text-on-surface">
+<!-- SideNavBar Shell -->
+<aside class="fixed left-0 top-0 h-full w-sidebar-width bg-surface-container-low border-r border-outline-variant z-50 flex flex-col">
+<div class="p-margin flex flex-col gap-base">
+<div class="font-headline-md text-headline-md font-bold text-primary mb-1">AgentOps</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant opacity-70 uppercase tracking-widest mb-6">Enterprise Console</div>
+<button class="w-full bg-primary-container text-on-primary-container px-4 py-3 font-bold flex items-center justify-center gap-2 mb-6 cursor-pointer active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[20px]">add</span>
+<span class="font-label-sm text-label-sm">New Run</span>
+</button>
+<nav class="flex flex-col gap-1">
+<!-- Navigation Items -->
+<a class="flex items-center gap-3 px-3 py-2 text-primary font-bold bg-secondary-container/10 transition-colors cursor-pointer" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-label-sm text-label-sm">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container-highest transition-colors cursor-pointer" href="#">
+<span class="material-symbols-outlined" data-icon="terminal">terminal</span>
+<span class="font-label-sm text-label-sm">Execution</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container-highest transition-colors cursor-pointer" href="#">
+<span class="material-symbols-outlined" data-icon="description">description</span>
+<span class="font-label-sm text-label-sm">RAG Docs</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container-highest transition-colors cursor-pointer" href="#">
+<span class="material-symbols-outlined" data-icon="confirmation_number">confirmation_number</span>
+<span class="font-label-sm text-label-sm">Tickets</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container-highest transition-colors cursor-pointer" href="#">
+<span class="material-symbols-outlined" data-icon="fact_check">fact_check</span>
+<span class="font-label-sm text-label-sm">Approvals</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container-highest transition-colors cursor-pointer" href="#">
+<span class="material-symbols-outlined" data-icon="history">history</span>
+<span class="font-label-sm text-label-sm">Audit</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container-highest transition-colors cursor-pointer" href="#">
+<span class="material-symbols-outlined" data-icon="gavel">gavel</span>
+<span class="font-label-sm text-label-sm">Governance</span>
+</a>
+</nav>
+</div>
+<div class="mt-auto p-margin border-t border-outline-variant flex flex-col gap-1">
+<div class="flex items-center gap-3 px-3 py-2 text-primary font-bold transition-colors cursor-pointer">
+<span class="material-symbols-outlined" data-icon="dns" style="font-variation-settings: 'FILL' 1;">dns</span>
+<span class="font-label-sm text-label-sm">Runtime Healthy</span>
+</div>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container-highest transition-colors cursor-pointer" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-label-sm text-label-sm">Settings</span>
+</a>
+</div>
+</aside>
+<!-- TopAppBar Shell -->
+<header class="fixed top-0 right-0 w-[calc(100%-var(--sidebar-width))] h-16 bg-surface border-b border-outline-variant z-40 flex justify-between items-center px-margin">
+<div class="flex items-center gap-8">
+<div class="relative">
+<span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-outline text-[18px]">search</span>
+<input class="bg-surface-container-low border border-outline-variant px-10 py-1.5 w-80 text-on-surface focus:outline-none focus:border-primary font-body-md text-body-md rounded-none" placeholder="Search traces, docs, or events..." type="text"/>
+</div>
+<nav class="flex gap-6">
+<a class="text-primary border-b-2 border-primary pb-1 font-label-sm text-label-sm uppercase tracking-wider" href="#">Status</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors font-label-sm text-label-sm uppercase tracking-wider" href="#">API Keys</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors font-label-sm text-label-sm uppercase tracking-wider" href="#">Logs</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<button class="bg-primary text-on-primary px-4 py-1.5 font-bold font-label-sm text-label-sm active:opacity-80 transition-opacity">Save Key</button>
+<div class="flex items-center gap-4 text-on-surface-variant px-4 border-l border-outline-variant">
+<span class="material-symbols-outlined cursor-pointer hover:text-primary" data-icon="account_tree">account_tree</span>
+<span class="material-symbols-outlined cursor-pointer hover:text-primary" data-icon="notifications">notifications</span>
+<div class="w-8 h-8 bg-surface-container-highest rounded-full overflow-hidden border border-outline-variant">
+<img alt="User Profile" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA3eJ4xREsSlJJzUHMYiEwn-I6pRuXP6agIPZphzBYKJDnoqJEIdnXLbxXmU4IjFV5kxRz_BNCPYmSiQmetxlQVgl7bOn4O-V5s0Jpxz43zD1_aqbagyiApeOJRfPsfodIIOFAv4mgP-_lxMfEjEibDpOlPXFK9u9ZHzrO1UncQpjT5YkOXpPDOoAckQhjGpMU_InwDFhGcbhZ3kq24Lv7XBv8ysVqQQ1dcNKsHQv4L_Sj6tqJUbzEJ-31ZnJcUn4r7Z-OsDFu-aCI"/>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="ml-[var(--sidebar-width)] pt-16 min-h-screen bg-surface">
+<!-- Command Center (Metrics Grid) -->
+<section class="p-margin">
+<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-base">
+<!-- Metric Card -->
+<div class="bg-surface-container-low border border-outline-variant p-3 flex flex-col gap-1">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase opacity-60">Documents</span>
+<span class="font-headline-md text-headline-md text-on-surface">124</span>
+</div>
+<div class="bg-surface-container-low border border-outline-variant p-3 flex flex-col gap-1">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase opacity-60">Tickets</span>
+<span class="font-headline-md text-headline-md text-on-surface">42</span>
+</div>
+<div class="bg-surface-container-low border border-outline-variant p-3 flex flex-col gap-1">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase opacity-60">Agent Runs</span>
+<span class="font-headline-md text-headline-md text-primary">1.2k</span>
+</div>
+<div class="bg-surface-container-low border border-outline-variant p-3 flex flex-col gap-1">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase opacity-60">Pending</span>
+<span class="font-headline-md text-headline-md text-tertiary">8</span>
+</div>
+<div class="bg-surface-container-low border border-outline-variant p-3 flex flex-col gap-1">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase opacity-60">Quality</span>
+<span class="font-headline-md text-headline-md text-secondary">98.2%</span>
+</div>
+<div class="bg-surface-container-low border border-outline-variant p-3 flex flex-col gap-1">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase opacity-60">Latency</span>
+<span class="font-headline-md text-headline-md text-on-surface">450ms</span>
+</div>
+<div class="bg-surface-container-low border border-outline-variant p-3 flex flex-col gap-1">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase opacity-60">Outbox</span>
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+<span class="font-headline-md text-headline-md text-on-surface">Healthy</span>
+</div>
+</div>
+<div class="bg-surface-container-low border border-outline-variant p-3 flex flex-col gap-1">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase opacity-60">Traced Runs</span>
+<span class="font-headline-md text-headline-md text-on-surface">890</span>
+</div>
+</div>
+</section>
+<!-- Primary Workspace -->
+<section class="px-margin pb-margin grid grid-cols-1 lg:grid-cols-[65%_35%] gap-margin">
+<!-- Left: Agent Runs Traces -->
+<div class="bg-surface-container-low border border-outline-variant flex flex-col">
+<div class="px-4 py-3 border-b border-outline-variant flex justify-between items-center">
+<h2 class="font-headline-md text-headline-md">Agent Execution Traces</h2>
+<div class="flex gap-2">
+<span class="bg-surface-container-highest px-2 py-0.5 font-label-sm text-label-sm text-on-surface-variant border border-outline-variant">AUTO-REFRESH: ON</span>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-high border-b border-outline-variant">
+<th class="p-3 font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Trace ID</th>
+<th class="p-3 font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Provider</th>
+<th class="p-3 font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Model</th>
+<th class="p-3 font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Latency</th>
+<th class="p-3 font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider text-right">Score</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/30">
+<!-- Trace Row 1 -->
+<tr class="hover:bg-surface-container-highest transition-colors group cursor-pointer">
+<td class="p-3 font-code-xs text-code-xs text-primary">tr_89a2-x912</td>
+<td class="p-3">
+<span class="px-2 py-0.5 bg-surface-container border border-outline-variant text-[11px] font-bold">OPENAI</span>
+</td>
+<td class="p-3 font-label-sm text-label-sm">GPT-4o</td>
+<td class="p-3 font-code-xs text-code-xs text-on-surface-variant">412ms</td>
+<td class="p-3 text-right">
+<span class="px-2 py-1 bg-primary/10 text-primary border border-primary/20 text-[10px] font-bold">98.5</span>
+</td>
+</tr>
+<!-- Trace Row 2 -->
+<tr class="hover:bg-surface-container-highest transition-colors group cursor-pointer">
+<td class="p-3 font-code-xs text-code-xs text-primary">tr_12c4-v403</td>
+<td class="p-3">
+<span class="px-2 py-0.5 bg-surface-container border border-outline-variant text-[11px] font-bold">ANTHROPIC</span>
+</td>
+<td class="p-3 font-label-sm text-label-sm">Claude 3.5 Sonnet</td>
+<td class="p-3 font-code-xs text-code-xs text-on-surface-variant">1.2s</td>
+<td class="p-3 text-right">
+<span class="px-2 py-1 bg-primary/10 text-primary border border-primary/20 text-[10px] font-bold">96.2</span>
+</td>
+</tr>
+<!-- Trace Row 3 -->
+<tr class="hover:bg-surface-container-highest transition-colors group cursor-pointer">
+<td class="p-3 font-code-xs text-code-xs text-primary">tr_77e1-z552</td>
+<td class="p-3">
+<span class="px-2 py-0.5 bg-surface-container border border-outline-variant text-[11px] font-bold">OPENAI</span>
+</td>
+<td class="p-3 font-label-sm text-label-sm">GPT-4o mini</td>
+<td class="p-3 font-code-xs text-code-xs text-on-surface-variant">290ms</td>
+<td class="p-3 text-right">
+<span class="px-2 py-1 bg-error/10 text-error border border-error/20 text-[10px] font-bold">42.1</span>
+</td>
+</tr>
+<!-- Trace Row 4 -->
+<tr class="hover:bg-surface-container-highest transition-colors group cursor-pointer">
+<td class="p-3 font-code-xs text-code-xs text-primary">tr_bb93-u821</td>
+<td class="p-3">
+<span class="px-2 py-0.5 bg-surface-container border border-outline-variant text-[11px] font-bold">ANTHROPIC</span>
+</td>
+<td class="p-3 font-label-sm text-label-sm">Claude 3.5 Haiku</td>
+<td class="p-3 font-code-xs text-code-xs text-on-surface-variant">320ms</td>
+<td class="p-3 text-right">
+<span class="px-2 py-1 bg-primary/10 text-primary border border-primary/20 text-[10px] font-bold">94.8</span>
+</td>
+</tr>
+<!-- Trace Row 5 -->
+<tr class="hover:bg-surface-container-highest transition-colors group cursor-pointer">
+<td class="p-3 font-code-xs text-code-xs text-primary">tr_aa44-m119</td>
+<td class="p-3">
+<span class="px-2 py-0.5 bg-surface-container border border-outline-variant text-[11px] font-bold">OPENAI</span>
+</td>
+<td class="p-3 font-label-sm text-label-sm">GPT-4o</td>
+<td class="p-3 font-code-xs text-code-xs text-on-surface-variant">520ms</td>
+<td class="p-3 text-right">
+<span class="px-2 py-1 bg-primary/10 text-primary border border-primary/20 text-[10px] font-bold">99.1</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Right: Mastra Runtime Status -->
+<div class="flex flex-col gap-margin">
+<!-- Runtime Card -->
+<div class="bg-surface-container-high border border-outline-variant p-4">
+<div class="flex justify-between items-center mb-4">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px]" data-icon="hub">hub</span>
+<span class="font-headline-md text-headline-md">Mastra Runtime</span>
+</div>
+<span class="bg-primary/20 text-primary px-2 py-0.5 font-code-xs text-code-xs border border-primary/30">v4.1.2-stable</span>
+</div>
+<div class="space-y-4">
+<!-- Agents -->
+<div>
+<div class="flex justify-between font-label-sm text-label-sm text-on-surface-variant mb-1 uppercase tracking-tighter">
+<span>Registered Agents</span>
+<span class="text-primary">12</span>
+</div>
+<div class="flex flex-wrap gap-1">
+<span class="px-2 py-0.5 bg-surface-container-highest border border-outline-variant text-code-xs">customer-support-v2</span>
+<span class="px-2 py-0.5 bg-surface-container-highest border border-outline-variant text-code-xs">triage-specialist</span>
+<span class="px-2 py-0.5 bg-surface-container-highest border border-outline-variant text-code-xs">doc-indexer</span>
+</div>
+</div>
+<!-- Tools -->
+<div>
+<div class="flex justify-between font-label-sm text-label-sm text-on-surface-variant mb-1 uppercase tracking-tighter">
+<span>Active Tools</span>
+<span class="text-primary">48</span>
+</div>
+<div class="w-full h-1.5 bg-surface-container-highest overflow-hidden">
+<div class="bg-primary h-full w-[85%]"></div>
+</div>
+</div>
+<!-- Studio Launch Command -->
+<div class="bg-background p-3 border border-outline-variant mt-4">
+<div class="flex justify-between items-center mb-2">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Studio Launch</span>
+<span class="material-symbols-outlined text-[16px] cursor-pointer hover:text-primary">content_copy</span>
+</div>
+<code class="font-code-xs text-code-xs text-primary block break-all">
+                                npx mastra@latest dev --port 4000 --trace
+                            </code>
+</div>
+<button class="w-full bg-surface-container-highest border border-outline-variant py-2 font-label-sm text-label-sm uppercase font-bold hover:bg-outline-variant transition-colors active:scale-95">
+                            Open Mastra Studio
+                        </button>
+</div>
+</div>
+<!-- Recent Health Metric -->
+<div class="bg-surface-container-low border border-outline-variant overflow-hidden">
+<div class="h-24 relative overflow-hidden bg-background">
+<div class="absolute inset-0 opacity-20 pointer-events-none" id="mini-graph">
+<!-- JS would draw here -->
+<svg class="w-full h-full preserve-aspect-ratio-none" viewbox="0 0 400 100">
+<path d="M0 80 Q 50 20, 100 70 T 200 40 T 300 60 T 400 30" fill="none" stroke="#38d996" stroke-width="2"></path>
+</svg>
+</div>
+<div class="absolute top-2 left-3">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">Engine Latency Trend</span>
+</div>
+<div class="absolute bottom-2 right-3">
+<span class="font-headline-md text-headline-md text-primary">Steady</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Workflow Panels (Bento Style Bottom) -->
+<section class="px-margin pb-margin grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-margin">
+<!-- RAG Documents Status -->
+<div class="bg-surface-container-low border border-outline-variant p-4">
+<div class="flex items-center gap-2 mb-4">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="database">database</span>
+<h3 class="font-label-sm text-label-sm font-bold uppercase tracking-widest">RAG Documents</h3>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between items-center p-2 bg-background border border-outline-variant/50">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm">Compliance_2024.pdf</span>
+<span class="font-code-xs text-code-xs text-on-surface-variant">Chunking: 1,240 shards</span>
+</div>
+<span class="bg-primary/10 text-primary text-[10px] px-2 py-0.5 font-bold">INDEXED</span>
+</div>
+<div class="flex justify-between items-center p-2 bg-background border border-outline-variant/50">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm">Security_Overview.md</span>
+<span class="font-code-xs text-code-xs text-on-surface-variant">Embedding: OpenAI-v3</span>
+</div>
+<span class="bg-tertiary/10 text-tertiary text-[10px] px-2 py-0.5 font-bold">PROCESSING</span>
+</div>
+<div class="flex justify-between items-center p-2 bg-background border border-outline-variant/50 opacity-60">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm">Archive_v1.zip</span>
+<span class="font-code-xs text-code-xs text-on-surface-variant">Error: File Corrupted</span>
+</div>
+<span class="bg-error/10 text-error text-[10px] px-2 py-0.5 font-bold">ERROR</span>
+</div>
+</div>
+<button class="w-full mt-4 text-center text-primary font-label-sm text-label-sm hover:underline py-1">View Index Explorer</button>
+</div>
+<!-- Ticket Triage Form -->
+<div class="bg-surface-container-low border border-outline-variant p-4">
+<div class="flex items-center gap-2 mb-4">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="smart_toy">smart_toy</span>
+<h3 class="font-label-sm text-label-sm font-bold uppercase tracking-widest">Manual Override Triage</h3>
+</div>
+<div class="space-y-3">
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-on-surface-variant uppercase opacity-70">Trace Reference</label>
+<input class="bg-surface-container-highest border border-outline-variant px-3 py-2 text-on-surface-variant font-code-xs text-code-xs cursor-not-allowed" disabled="" type="text" value="tr_89a2-x912"/>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-on-surface-variant uppercase opacity-70">Instruction Override</label>
+<textarea class="bg-background border border-outline-variant px-3 py-2 text-on-surface font-body-md text-body-md focus:outline-none focus:border-primary resize-none" placeholder="Force agent to prioritize security context..." rows="2"></textarea>
+</div>
+<div class="flex gap-2 pt-1">
+<button class="flex-1 bg-primary text-on-primary py-2 font-bold font-label-sm text-label-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-[18px]">play_arrow</span>
+                            Apply &amp; Re-run
+                        </button>
+<button class="bg-surface-container-highest border border-outline-variant px-3 flex items-center justify-center text-on-surface-variant disabled:opacity-50">
+<span class="material-symbols-outlined animate-spin" data-icon="refresh">refresh</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Audit Events Log -->
+<div class="bg-surface-container-low border border-outline-variant p-4">
+<div class="flex items-center gap-2 mb-4">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="security">security</span>
+<h3 class="font-label-sm text-label-sm font-bold uppercase tracking-widest">System Audit Log</h3>
+</div>
+<div class="flex flex-col gap-2 font-code-xs text-code-xs">
+<div class="flex items-start gap-3 p-1.5 border-l-2 border-primary bg-primary/5">
+<span class="text-on-surface-variant opacity-50 shrink-0">14:22:01</span>
+<div class="flex flex-col">
+<span class="text-on-surface">Agent <span class="text-primary font-bold">Support_Lead</span> initialized.</span>
+<span class="text-on-surface-variant opacity-70">CID: 99x-11-203</span>
+</div>
+</div>
+<div class="flex items-start gap-3 p-1.5 border-l-2 border-tertiary bg-tertiary/5">
+<span class="text-on-surface-variant opacity-50 shrink-0">14:21:44</span>
+<div class="flex flex-col">
+<span class="text-on-surface">Warning: <span class="text-tertiary font-bold">API Throttling</span> near limit.</span>
+<span class="text-on-surface-variant opacity-70">Provider: OpenAI (402)</span>
+</div>
+</div>
+<div class="flex items-start gap-3 p-1.5 border-l-2 border-outline-variant">
+<span class="text-on-surface-variant opacity-50 shrink-0">14:18:30</span>
+<div class="flex flex-col">
+<span class="text-on-surface">Data refresh triggered from <span class="text-on-surface-variant">Worker_Node_B</span></span>
+</div>
+</div>
+<div class="flex items-start gap-3 p-1.5 border-l-2 border-error bg-error/5">
+<span class="text-on-surface-variant opacity-50 shrink-0">14:15:02</span>
+<div class="flex flex-col">
+<span class="text-on-surface">Critical: <span class="text-error font-bold">RAG Timeout</span> on Index 4.</span>
+<span class="text-on-surface-variant opacity-70">Event: SEC_VIOLATION_04</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer Stats Overlay (Fixed Bottom Mobile) -->
+<div class="md:hidden fixed bottom-0 left-0 right-0 bg-surface-container border-t border-outline-variant px-margin py-2 flex justify-between items-center z-50">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant">ACTIVE RUNS</span>
+<span class="text-primary font-bold">1,204</span>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary">sensors</span>
+<span class="material-symbols-outlined">menu</span>
+</div>
+</div>
+<!-- Background Decoration -->
+<div class="fixed top-0 right-0 w-1/3 h-1/3 bg-primary/5 blur-[120px] -z-10 pointer-events-none"></div>
+<script>
+        // Micro-interaction: Hover effects for table rows and buttons
+        document.querySelectorAll('tr').forEach(row => {
+            row.addEventListener('click', () => {
+                row.classList.add('bg-primary/5');
+                setTimeout(() => row.classList.remove('bg-primary/5'), 200);
+            });
+        });
+
+        // Simulate real-time metric updates
+        setInterval(() => {
+            const metrics = document.querySelectorAll('.text-headline-md');
+            if(metrics.length > 0) {
+               const randomIdx = Math.floor(Math.random() * metrics.length);
+               const metric = metrics[randomIdx];
+               if (metric.innerText.includes('.') || !isNaN(metric.innerText)) {
+                 // Subtle blink to simulate update
+                 metric.style.opacity = '0.5';
+                 setTimeout(() => metric.style.opacity = '1', 100);
+               }
+            }
+        }, 3000);
+    </script>
+</body></html>

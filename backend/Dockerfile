@@ -17,5 +17,9 @@ COPY --from=build /app/backend/package*.json backend/
 COPY --from=build /app/backend/dist backend/dist
 COPY --from=deps /app/node_modules node_modules
 COPY --from=deps /app/backend/node_modules backend/node_modules
+RUN addgroup -S agentops && adduser -S -G agentops agentops \
+  && mkdir -p /app/data /app/backend/data \
+  && chown -R agentops:agentops /app
+USER agentops
 EXPOSE 3333
 CMD ["npm", "run", "start", "-w", "backend"]

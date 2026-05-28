@@ -151,3 +151,13 @@ export interface GovernancePolicy {
   name: string;
   description: string;
 }
+
+export interface SystemStatus {
+  nodeEnv: string;
+  authRequired: boolean;
+  dataStore: string;
+  llmProvider: string;
+  llmModel: string;
+  vectorStore: string;
+  qdrantCollection: string;
+}

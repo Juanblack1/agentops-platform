@@ -5,6 +5,11 @@ const EnvSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(3333),
   API_KEY: z.string().optional().default(""),
+  ENABLE_API_DOCS: z
+    .string()
+    .optional()
+    .transform((value) => (value === undefined ? undefined : value.toLowerCase() === "true")),
+  CORS_ORIGINS: z.string().optional().default(""),
   LOG_LEVEL: z.string().default("info"),
   DATA_STORE: z.enum(["memory", "file", "postgres"]).default("file"),
   DATA_FILE_PATH: z.string().default("../data/agentops-store.json"),
@@ -34,7 +39,10 @@ const EnvSchema = z.object({
     .string()
     .default("true")
     .transform((value) => value.toLowerCase() === "true")
-});
+}).transform((config) => ({
+  ...config,
+  ENABLE_API_DOCS: config.ENABLE_API_DOCS ?? config.NODE_ENV !== "production"
+}));
 
 export type AppConfig = z.infer<typeof EnvSchema>;
 

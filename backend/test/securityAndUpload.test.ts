@@ -10,7 +10,7 @@ import { buildServer } from "../src/server";
 // Boundary IN: Fastify auth hook, route role checks and multipart upload route.
 // Boundary OUT: external identity providers and binary document parsers.
 describe("security and upload API", () => {
-  it("keeps read-only API routes public while protecting mutating routes", async () => {
+  it("keeps low-risk metadata routes public while protecting operational data routes", async () => {
     const app = await buildServer(
       loadConfig({
         NODE_ENV: "test",
@@ -25,12 +25,54 @@ describe("security and upload API", () => {
       url: "/api/system"
     });
     expect(system.statusCode).toBe(200);
+    expect(system.headers["x-content-type-options"]).toBe("nosniff");
+    expect(system.json().data.authRequired).toBe(true);
+    expect(system.json().data.dataFilePath).toBeUndefined();
+
+    const readiness = await app.inject({
+      method: "GET",
+      url: "/readiness"
+    });
+    expect(readiness.statusCode).toBe(200);
+    expect(readiness.json()).toEqual({
+      status: "ready"
+    });
+
+    const blockedCors = await app.inject({
+      method: "GET",
+      url: "/api/system",
+      headers: {
+        origin: "https://evil.example"
+      }
+    });
+    expect(blockedCors.headers["access-control-allow-origin"]).toBeUndefined();
+
+    const allowedCors = await app.inject({
+      method: "GET",
+      url: "/api/system",
+      headers: {
+        origin: "http://localhost:5173"
+      }
+    });
+    expect(allowedCors.headers["access-control-allow-origin"]).toBe("http://localhost:5173");
 
     const mastra = await app.inject({
       method: "GET",
       url: "/api/agents/mastra"
     });
     expect(mastra.statusCode).toBe(200);
+
+    const metrics = await app.inject({
+      method: "GET",
+      url: "/api/metrics"
+    });
+    expect(metrics.statusCode).toBe(401);
+
+    const documents = await app.inject({
+      method: "GET",
+      url: "/api/documents"
+    });
+    expect(documents.statusCode).toBe(401);
 
     const run = await app.inject({
       method: "POST",
@@ -46,6 +88,25 @@ describe("security and upload API", () => {
       url: "/api/demo/seed"
     });
     expect(seed.statusCode).toBe(401);
+
+    await app.close();
+  });
+
+  it("does not expose API documentation by default in production", async () => {
+    const app = await buildServer(
+      loadConfig({
+        NODE_ENV: "production",
+        DATA_STORE: "memory",
+        LLM_PROVIDER: "mock",
+        SEED_DEMO_DATA: "false"
+      } as NodeJS.ProcessEnv)
+    );
+
+    const docs = await app.inject({
+      method: "GET",
+      url: "/docs"
+    });
+    expect(docs.statusCode).toBe(404);
 
     await app.close();
   });
@@ -127,6 +188,26 @@ describe("security and upload API", () => {
     expect(response.json().data.title).toBe("runbook.md");
     expect(response.json().data.chunks.length).toBeGreaterThan(0);
     expect(response.json().data.rawStorage.provider).toBe("local");
+
+    const rejectedBody = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="file"; filename="payload.exe"',
+      "Content-Type: application/octet-stream",
+      "",
+      "Runbook com extensao invalida, apesar de conter texto suficiente para passar pelo parser.",
+      `--${boundary}--`,
+      ""
+    ].join("\r\n");
+
+    const rejectedResponse = await app.inject({
+      method: "POST",
+      url: "/api/documents/upload?classification=internal&tags=upload,teste",
+      headers: {
+        "content-type": `multipart/form-data; boundary=${boundary}`
+      },
+      payload: rejectedBody
+    });
+    expect(rejectedResponse.statusCode).toBe(415);
 
     await app.close();
   });

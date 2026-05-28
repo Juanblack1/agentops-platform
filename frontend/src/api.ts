@@ -9,14 +9,46 @@ import type {
   GovernancePolicy,
   OutboxMessage,
   PlatformMetrics,
+  SystemStatus,
   Ticket
 } from "./types";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3333";
 const API_KEY_STORAGE_KEY = "agentops.apiKey";
+const API_KEY_LEGACY_STORAGE_KEY = "agentops.apiKey";
+let volatileApiKey = "";
+
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+function getStoredApiKey() {
+  const sessionValue = readSessionValue(API_KEY_STORAGE_KEY);
+
+  if (sessionValue) {
+    volatileApiKey = sessionValue;
+    return sessionValue;
+  }
+
+  const legacyValue = readLocalValue(API_KEY_LEGACY_STORAGE_KEY);
+
+  if (legacyValue) {
+    volatileApiKey = legacyValue;
+    writeSessionValue(API_KEY_STORAGE_KEY, legacyValue);
+    removeLocalValue(API_KEY_LEGACY_STORAGE_KEY);
+  }
+
+  return legacyValue ?? volatileApiKey;
+}
 
 function apiKeyHeaders() {
-  const apiKey = localStorage.getItem(API_KEY_STORAGE_KEY);
+  const apiKey = getStoredApiKey();
   return apiKey ? { "x-api-key": apiKey } : undefined;
 }
 
@@ -44,14 +76,15 @@ function buildMultipartHeaders() {
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const { headers: optionsHeaders, ...restOptions } = options ?? {};
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: buildHeaders(options?.headers),
-    ...options
+    ...restOptions,
+    headers: buildHeaders(optionsHeaders)
   });
 
   if (!response.ok) {
-    const message = await response.text();
-    throw new Error(message || `Request failed with status ${response.status}`);
+    const message = await readErrorMessage(response);
+    throw new ApiError(message || `Request failed with status ${response.status}`, response.status);
   }
 
   return (await response.json()) as T;
@@ -65,24 +98,44 @@ async function multipartRequest<T>(path: string, body: FormData): Promise<T> {
   });
 
   if (!response.ok) {
-    const message = await response.text();
-    throw new Error(message || `Request failed with status ${response.status}`);
+    const message = await readErrorMessage(response);
+    throw new ApiError(message || `Request failed with status ${response.status}`, response.status);
   }
 
   return (await response.json()) as T;
 }
 
+async function readErrorMessage(response: Response) {
+  const text = await response.text();
+
+  if (!text) {
+    return "";
+  }
+
+  try {
+    const parsed = JSON.parse(text) as { message?: string; error?: string };
+    return parsed.message ?? parsed.error ?? text;
+  } catch {
+    return text;
+  }
+}
+
 export const api = {
   getApiKey() {
-    return localStorage.getItem(API_KEY_STORAGE_KEY) ?? "";
+    return getStoredApiKey();
   },
   setApiKey(value: string) {
     const nextValue = value.trim();
+    volatileApiKey = nextValue;
     if (nextValue) {
-      localStorage.setItem(API_KEY_STORAGE_KEY, nextValue);
+      writeSessionValue(API_KEY_STORAGE_KEY, nextValue);
     } else {
-      localStorage.removeItem(API_KEY_STORAGE_KEY);
+      removeSessionValue(API_KEY_STORAGE_KEY);
     }
+    removeLocalValue(API_KEY_LEGACY_STORAGE_KEY);
+  },
+  async system() {
+    return request<{ data: SystemStatus }>("/api/system");
   },
   async metrics() {
     return request<{ data: PlatformMetrics }>("/api/metrics");
@@ -188,3 +241,43 @@ export const api = {
     });
   }
 };
+
+function readSessionValue(key: string) {
+  try {
+    return sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeSessionValue(key: string, value: string) {
+  try {
+    sessionStorage.setItem(key, value);
+  } catch {
+    // In private or locked-down browsers, the API key stays only in React state.
+  }
+}
+
+function removeSessionValue(key: string) {
+  try {
+    sessionStorage.removeItem(key);
+  } catch {
+    // Ignore unavailable browser storage.
+  }
+}
+
+function readLocalValue(key: string) {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function removeLocalValue(key: string) {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // Ignore unavailable browser storage.
+  }
+}

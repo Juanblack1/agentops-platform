@@ -71,15 +71,14 @@ export async function registerRoutes(app: FastifyInstance, services: RouteServic
   }));
 
   app.get("/readiness", async () => ({
-    status: "ready",
-    metrics: services.store.metrics()
+    status: "ready"
   }));
 
   app.get("/api/system", async () => ({
     data: {
       nodeEnv: services.config.NODE_ENV,
+      authRequired: authIsEnabled(services.config),
       dataStore: services.config.DATA_STORE,
-      dataFilePath: services.config.DATA_STORE === "file" ? services.config.DATA_FILE_PATH : null,
       llmProvider: services.config.LLM_PROVIDER,
       llmModel:
         services.config.LLM_PROVIDER === "google"
@@ -113,11 +112,15 @@ export async function registerRoutes(app: FastifyInstance, services: RouteServic
     return reply.code(201).send({ data: run });
   });
 
-  app.get("/api/agent-runs", async () => ({
-    data: services.store.listAgentRuns()
-  }));
+  app.get("/api/agent-runs", async (request, reply) => {
+    if (requireRole(request, reply, services.config, ["operator", "reviewer", "admin"])) return;
+    return {
+      data: services.store.listAgentRuns()
+    };
+  });
 
   app.get("/api/traces/:runId", async (request, reply) => {
+    if (requireRole(request, reply, services.config, ["operator", "reviewer", "admin"])) return;
     const params = z.object({ runId: z.string().uuid() }).parse(request.params);
     const run = services.store.findAgentRun(params.runId);
 
@@ -131,11 +134,15 @@ export async function registerRoutes(app: FastifyInstance, services: RouteServic
     return { data: run.trace };
   });
 
-  app.get("/api/evaluations", async () => ({
-    data: services.store.listAgentEvaluations()
-  }));
+  app.get("/api/evaluations", async (request, reply) => {
+    if (requireRole(request, reply, services.config, ["operator", "reviewer", "admin"])) return;
+    return {
+      data: services.store.listAgentEvaluations()
+    };
+  });
 
   app.get("/api/evaluations/:runId", async (request, reply) => {
+    if (requireRole(request, reply, services.config, ["operator", "reviewer", "admin"])) return;
     const params = z.object({ runId: z.string().uuid() }).parse(request.params);
     const evaluation = services.store.findEvaluationByRunId(params.runId);
 
@@ -149,9 +156,12 @@ export async function registerRoutes(app: FastifyInstance, services: RouteServic
     return { data: evaluation };
   });
 
-  app.get("/api/documents", async () => ({
-    data: services.store.listDocuments()
-  }));
+  app.get("/api/documents", async (request, reply) => {
+    if (requireRole(request, reply, services.config, ["operator", "reviewer", "admin"])) return;
+    return {
+      data: services.store.listDocuments()
+    };
+  });
 
   app.post("/api/documents", async (request, reply) => {
     if (requireRole(request, reply, services.config, ["operator", "reviewer", "admin"])) return;
@@ -184,6 +194,13 @@ export async function registerRoutes(app: FastifyInstance, services: RouteServic
       return reply.code(400).send({
         error: "missing_file",
         message: "Upload a text or markdown file using multipart field name 'file'."
+      });
+    }
+
+    if (!isSupportedTextUpload(upload.filename, upload.mimetype)) {
+      return reply.code(415).send({
+        error: "unsupported_media_type",
+        message: "Only .txt, .md or markdown text uploads are supported."
       });
     }
 
@@ -228,9 +245,12 @@ export async function registerRoutes(app: FastifyInstance, services: RouteServic
     return reply.code(201).send({ data: document });
   });
 
-  app.get("/api/tickets", async () => ({
-    data: services.store.listTickets()
-  }));
+  app.get("/api/tickets", async (request, reply) => {
+    if (requireRole(request, reply, services.config, ["operator", "reviewer", "admin"])) return;
+    return {
+      data: services.store.listTickets()
+    };
+  });
 
   app.post("/api/tickets", async (request, reply) => {
     if (requireRole(request, reply, services.config, ["operator", "reviewer", "admin"])) return;
@@ -239,13 +259,19 @@ export async function registerRoutes(app: FastifyInstance, services: RouteServic
     return reply.code(201).send({ data: ticket });
   });
 
-  app.get("/api/audit-events", async () => ({
-    data: services.store.listAuditEvents()
-  }));
+  app.get("/api/audit-events", async (request, reply) => {
+    if (requireRole(request, reply, services.config, ["operator", "reviewer", "admin"])) return;
+    return {
+      data: services.store.listAuditEvents()
+    };
+  });
 
-  app.get("/api/outbox", async () => ({
-    data: services.store.listOutboxMessages()
-  }));
+  app.get("/api/outbox", async (request, reply) => {
+    if (requireRole(request, reply, services.config, ["operator", "reviewer", "admin"])) return;
+    return {
+      data: services.store.listOutboxMessages()
+    };
+  });
 
   app.post("/api/outbox/dispatch", async (request, reply) => {
     if (requireRole(request, reply, services.config, ["admin"])) return;
@@ -254,9 +280,12 @@ export async function registerRoutes(app: FastifyInstance, services: RouteServic
     return { data: result };
   });
 
-  app.get("/api/approvals", async () => ({
-    data: services.store.listApprovalRequests()
-  }));
+  app.get("/api/approvals", async (request, reply) => {
+    if (requireRole(request, reply, services.config, ["operator", "reviewer", "admin"])) return;
+    return {
+      data: services.store.listApprovalRequests()
+    };
+  });
 
   app.post("/api/approvals/:approvalId/decision", async (request, reply) => {
     if (requireRole(request, reply, services.config, ["reviewer", "admin"])) return;
@@ -287,9 +316,12 @@ export async function registerRoutes(app: FastifyInstance, services: RouteServic
     return { data: result.approval };
   });
 
-  app.get("/api/metrics", async () => ({
-    data: services.store.metrics()
-  }));
+  app.get("/api/metrics", async (request, reply) => {
+    if (requireRole(request, reply, services.config, ["operator", "reviewer", "admin"])) return;
+    return {
+      data: services.store.metrics()
+    };
+  });
 
   app.get("/api/admin/snapshot", async (request, reply) => {
     if (requireRole(request, reply, services.config, ["admin"])) return;
@@ -309,6 +341,19 @@ export async function registerRoutes(app: FastifyInstance, services: RouteServic
       data: services.store.metrics()
     };
   });
+}
+
+function isSupportedTextUpload(filename: string, mimetype: string) {
+  const normalizedName = filename.toLowerCase();
+  const hasTextExtension =
+    normalizedName.endsWith(".txt") || normalizedName.endsWith(".md") || normalizedName.endsWith(".markdown");
+  const normalizedMime = mimetype.toLowerCase();
+  const hasTextMime =
+    normalizedMime.startsWith("text/") ||
+    normalizedMime === "application/markdown" ||
+    normalizedMime === "application/octet-stream";
+
+  return hasTextExtension && hasTextMime;
 }
 
 function requireRole(

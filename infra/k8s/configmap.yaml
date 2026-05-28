@@ -6,6 +6,8 @@ metadata:
 data:
   NODE_ENV: production
   PORT: "3333"
+  ENABLE_API_DOCS: "false"
+  CORS_ORIGINS: ""
   LOG_LEVEL: info
   DATA_STORE: postgres
   DOCUMENT_STORAGE: azure-blob

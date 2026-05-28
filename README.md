@@ -121,7 +121,7 @@ GOOGLE_GENERATIVE_AI_API_KEY=<sua-chave-google-ai-studio>
 GOOGLE_GENERATIVE_AI_MODEL=gemini-2.5-flash
 ```
 
-Em produção, o backend exige `API_KEYS` quando `LLM_PROVIDER` não for `mock`. A UI tem um campo `x-api-key` no topo para testar endpoints protegidos sem expor a chave no código.
+Em producao, o backend exige uma chave da propria plataforma quando `LLM_PROVIDER` nao for `mock`. A chave do Google fica somente no backend/Vercel e nunca deve ser colocada no frontend. A UI tem um campo de chave de acesso para operadores e tambem pode mostrar um botao de modo demo quando `DEMO_API_KEY` e `VITE_DEMO_API_KEY` estiverem configuradas.
 
 ## Mastra Studio
 
@@ -150,6 +150,10 @@ No `backend/.env`:
 
 ```env
 API_KEYS=operator:dev-operator-key,reviewer:dev-reviewer-key,admin:dev-admin-key
+DEMO_API_KEY=uma-chave-demo-longa
+DEMO_RATE_LIMIT_MAX=30
+DEMO_RATE_LIMIT_WINDOW_MS=600000
+VITE_DEMO_API_KEY=uma-chave-demo-longa
 ```
 
 Depois envie `x-api-key` nas chamadas. Roles:
@@ -157,6 +161,7 @@ Depois envie `x-api-key` nas chamadas. Roles:
 - `operator`: cria tickets, documentos e executa agentes.
 - `reviewer`: tambem decide aprovacoes.
 - `admin`: acessa snapshot e dispatch da outbox.
+- `DEMO_API_KEY`: funciona como `operator` publico, com limite temporario para proteger custo e abuso. Use somente para demonstracao.
 
 ## Como publicar outbox no Azure Service Bus
 
@@ -302,7 +307,7 @@ O projeto inclui automacao com `@vercel/sdk` para atualizar as variaveis de Prod
 npm run vercel:sync-env
 ```
 
-Esse comando le `backend/.env`, `backend/.env.local.admin-key`, `.vercel/project.json` e o token ja autenticado pela Vercel CLI. As variaveis sincronizadas sao `LLM_PROVIDER`, `GOOGLE_GENERATIVE_AI_API_KEY`, `GOOGLE_GENERATIVE_AI_MODEL`, `MASTRA_MODEL` e `API_KEYS`.
+Esse comando le `backend/.env`, `backend/.env.local.admin-key`, `backend/.env.local.demo-key`, `.vercel/project.json` e o token ja autenticado pela Vercel CLI. As variaveis sincronizadas sao `LLM_PROVIDER`, `GOOGLE_GENERATIVE_AI_API_KEY`, `GOOGLE_GENERATIVE_AI_MODEL`, `MASTRA_MODEL`, `API_KEYS`, `DEMO_API_KEY` e `VITE_DEMO_API_KEY` quando houver chave demo.
 
 Para iniciar o MCP local da Vercel via SDK:
 

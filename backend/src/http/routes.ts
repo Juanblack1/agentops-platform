@@ -335,7 +335,7 @@ export async function registerRoutes(app: FastifyInstance, services: RouteServic
   }));
 
   app.post("/api/demo/seed", async (request, reply) => {
-    if (requireRole(request, reply, services.config, ["admin"])) return;
+    if (requireRole(request, reply, services.config, ["operator", "reviewer", "admin"])) return;
     await seedDemoData(services.store, services.rag, services.tickets);
     return {
       data: services.store.metrics()

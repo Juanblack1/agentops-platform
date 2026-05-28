@@ -6,11 +6,11 @@ export type ApiRole = "operator" | "reviewer" | "admin";
 
 export interface ApiPrincipal {
   role: ApiRole;
-  source: "legacy" | "mapped";
+  source: "legacy" | "mapped" | "demo";
 }
 
 export function authIsEnabled(config: AppConfig) {
-  return Boolean(config.API_KEY || config.API_KEYS);
+  return Boolean(config.API_KEY || config.API_KEYS || config.DEMO_API_KEY);
 }
 
 export function resolveApiPrincipal(config: AppConfig, apiKeyHeader: unknown): ApiPrincipal | null {
@@ -34,6 +34,13 @@ export function resolveApiPrincipal(config: AppConfig, apiKeyHeader: unknown): A
         source: "mapped"
       };
     }
+  }
+
+  if (config.DEMO_API_KEY && secureCompare(apiKey, config.DEMO_API_KEY)) {
+    return {
+      role: "operator",
+      source: "demo"
+    };
   }
 
   return null;

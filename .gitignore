@@ -9,6 +9,7 @@ backend/data/
 backend/.env
 backend/.env.local
 backend/.env.local.admin-key
+backend/.env.local.demo-key
 backend/.env.*.local
 *.log
 *.generated

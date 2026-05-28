@@ -154,6 +154,69 @@ describe("security and upload API", () => {
     await app.close();
   });
 
+  it("accepts a rate-limited demo key as an operator without admin access", async () => {
+    const app = await buildServer(
+      loadConfig({
+        NODE_ENV: "test",
+        DATA_STORE: "memory",
+        DEMO_API_KEY: "demo-key",
+        DEMO_RATE_LIMIT_MAX: "2",
+        DEMO_RATE_LIMIT_WINDOW_MS: "600000",
+        SEED_DEMO_DATA: "false"
+      } as NodeJS.ProcessEnv)
+    );
+
+    const seed = await app.inject({
+      method: "POST",
+      url: "/api/demo/seed",
+      headers: {
+        "x-api-key": "demo-key",
+        "x-forwarded-for": "203.0.113.10"
+      }
+    });
+    expect(seed.statusCode).toBe(200);
+
+    const denied = await app.inject({
+      method: "GET",
+      url: "/api/admin/snapshot",
+      headers: {
+        "x-api-key": "demo-key",
+        "x-forwarded-for": "203.0.113.10"
+      }
+    });
+    expect(denied.statusCode).toBe(403);
+
+    const run = await app.inject({
+      method: "POST",
+      url: "/api/agents/support/run",
+      headers: {
+        "x-api-key": "demo-key",
+        "x-forwarded-for": "203.0.113.10"
+      },
+      payload: {
+        prompt: "Teste do modo demonstracao."
+      }
+    });
+    expect(run.statusCode).toBe(201);
+
+    const limited = await app.inject({
+      method: "POST",
+      url: "/api/tickets",
+      headers: {
+        "x-api-key": "demo-key",
+        "x-forwarded-for": "203.0.113.10"
+      },
+      payload: {
+        subject: "Limite demo",
+        customer: "Avaliador",
+        description: "Esta chamada deve respeitar o limite temporario do modo demo."
+      }
+    });
+    expect(limited.statusCode).toBe(429);
+
+    await app.close();
+  });
+
   it("ingests a multipart text upload as a document", async () => {
     const app = await buildServer(
       loadConfig({

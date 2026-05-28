@@ -3,6 +3,7 @@ import multipart from "@fastify/multipart";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import fastify from "fastify";
+import { createHash } from "node:crypto";
 import { ZodError } from "zod";
 import { loadConfig, type AppConfig } from "./config/env";
 import { InMemoryEventBus } from "./events/eventBus";
@@ -30,6 +31,7 @@ export async function buildServer(config: AppConfig = loadConfig()) {
   const logger = createLogger(config);
   assertProductionAiGuard(config);
   assertProductionApiKeyStrength(config);
+  const demoRateLimits = new Map<string, { count: number; windowStart: number }>();
   const store =
     config.DATA_STORE === "postgres"
       ? await createPostgresStore(config.POSTGRES_URL)
@@ -193,6 +195,17 @@ export async function buildServer(config: AppConfig = loadConfig()) {
       });
     }
 
+    if (principal.source === "demo" && request.method !== "GET") {
+      const rateLimit = checkDemoRateLimit(request, config, demoRateLimits);
+
+      if (!rateLimit.allowed) {
+        return reply.code(429).send({
+          error: "rate_limited",
+          message: `Modo demo atingiu o limite temporario. Tente novamente em ${rateLimit.retryAfterSeconds} segundos.`
+        });
+      }
+    }
+
     request.headers["x-agentops-role"] = principal.role;
   });
 
@@ -208,6 +221,43 @@ export async function buildServer(config: AppConfig = loadConfig()) {
   });
 
   return app;
+}
+
+function checkDemoRateLimit(
+  request: { headers: Record<string, unknown>; ip?: string },
+  config: AppConfig,
+  buckets: Map<string, { count: number; windowStart: number }>
+) {
+  if (config.DEMO_RATE_LIMIT_MAX === 0) {
+    return { allowed: true, retryAfterSeconds: 0 };
+  }
+
+  const now = Date.now();
+  const key = demoClientKey(request);
+  const current = buckets.get(key);
+
+  if (!current || now - current.windowStart >= config.DEMO_RATE_LIMIT_WINDOW_MS) {
+    buckets.set(key, {
+      count: 1,
+      windowStart: now
+    });
+    return { allowed: true, retryAfterSeconds: 0 };
+  }
+
+  if (current.count >= config.DEMO_RATE_LIMIT_MAX) {
+    const retryAfterSeconds = Math.max(1, Math.ceil((config.DEMO_RATE_LIMIT_WINDOW_MS - (now - current.windowStart)) / 1000));
+    return { allowed: false, retryAfterSeconds };
+  }
+
+  current.count += 1;
+  return { allowed: true, retryAfterSeconds: 0 };
+}
+
+function demoClientKey(request: { headers: Record<string, unknown>; ip?: string }) {
+  const forwardedForHeader = request.headers["x-forwarded-for"];
+  const forwardedFor = Array.isArray(forwardedForHeader) ? forwardedForHeader[0] : forwardedForHeader;
+  const clientIp = typeof forwardedFor === "string" ? forwardedFor.split(",")[0]?.trim() : request.ip;
+  return createHash("sha256").update(clientIp || "unknown").digest("hex").slice(0, 32);
 }
 
 async function createPostgresStore(connectionString: string) {
@@ -241,6 +291,10 @@ function assertProductionApiKeyStrength(config: AppConfig) {
     if (entry.key.length < 16) {
       throw new Error(`API key for role ${entry.role} must be at least 16 characters in production.`);
     }
+  }
+
+  if (config.DEMO_API_KEY && config.DEMO_API_KEY.length < 16) {
+    throw new Error("DEMO_API_KEY must be at least 16 characters in production.");
   }
 }
 

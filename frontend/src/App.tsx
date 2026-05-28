@@ -103,6 +103,7 @@ export default function App() {
   const [error, setError] = useState("");
   const [authNotice, setAuthNotice] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
+  const demoAvailable = api.hasDemoApiKey();
 
   async function refresh() {
     setLoading(true);
@@ -123,7 +124,11 @@ export default function App() {
 
       if (systemResponse.data.authRequired && !api.getApiKey()) {
         resetOperationalState();
-        setAuthNotice("Cole a chave de acesso no topo para ver dados operacionais e testar o fluxo.");
+        setAuthNotice(
+          demoAvailable
+            ? "Entre no modo demo para testar sem receber uma chave manual."
+            : "Cole a chave de acesso no topo para ver dados operacionais e testar o fluxo."
+        );
         return;
       }
 
@@ -196,7 +201,29 @@ export default function App() {
     void refresh();
   }
 
+  function enableDemoApiKey(refreshAfter: boolean) {
+    if (!api.activateDemoApiKey()) {
+      setError("Modo demo nao esta configurado neste ambiente.");
+      return false;
+    }
+
+    setApiKey(api.getDemoApiKey());
+    setStatusMessage("Modo demo ativo. Agora voce pode carregar o exemplo e testar o fluxo.");
+    if (refreshAfter) {
+      void refresh();
+    }
+    return true;
+  }
+
+  function activateDemoMode() {
+    return enableDemoApiKey(true);
+  }
+
   async function seedDemo() {
+    if (system?.authRequired && !api.getApiKey() && !enableDemoApiKey(false)) {
+      return;
+    }
+
     setLoading(true);
     setError("");
     setStatusMessage("");
@@ -215,6 +242,7 @@ export default function App() {
   const ticketApprovalCount = useMemo(() => tickets.filter((ticket) => ticket.status === "needs_approval").length, [tickets]);
   const hasOperationalData = metrics.documents + metrics.tickets + metrics.agentRuns + metrics.auditEvents > 0;
   const authRequiredWithoutKey = Boolean(system?.authRequired && !apiKey.trim());
+  const demoModeActive = Boolean(demoAvailable && apiKey.trim() === api.getDemoApiKey());
 
   return (
     <div className="app-shell">
@@ -288,7 +316,13 @@ export default function App() {
             <button className="icon-button" onClick={clearApiKey} type="button" title="Limpar chave de acesso" aria-label="Limpar chave de acesso">
               <XCircle size={18} />
             </button>
-            <button className="secondary-button" onClick={() => void seedDemo()} type="button" disabled={loading || Boolean(system?.authRequired && !apiKey.trim())}>
+            {demoAvailable && !apiKey.trim() ? (
+              <button className="secondary-button compact-action" onClick={activateDemoMode} type="button">
+                <Play size={16} />
+                Modo demo
+              </button>
+            ) : null}
+            <button className="secondary-button" onClick={() => void seedDemo()} type="button" disabled={loading || (authRequiredWithoutKey && !demoAvailable)}>
               <Database size={16} />
               Carregar exemplo
             </button>
@@ -311,6 +345,17 @@ export default function App() {
           <div className="notice warning" role="status">
             <KeyRound size={18} />
             <span>{authNotice}</span>
+            {demoAvailable ? (
+              <button type="button" onClick={activateDemoMode}>
+                Entrar no modo demo
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+        {demoModeActive ? (
+          <div className="notice info" role="status">
+            <Play size={18} />
+            <span>Modo demo ativo: as acoes ficam limitadas para proteger a conta de IA em producao.</span>
           </div>
         ) : null}
         {statusMessage ? (
@@ -331,6 +376,7 @@ export default function App() {
             system={system}
             hasOperationalData={hasOperationalData}
             authRequiredWithoutKey={authRequiredWithoutKey}
+            demoAvailable={demoAvailable}
             loading={loading}
             onNavigate={setActiveView}
             onSeedDemo={seedDemo}
@@ -366,6 +412,7 @@ function CommandCenter({
   system,
   hasOperationalData,
   authRequiredWithoutKey,
+  demoAvailable,
   loading,
   onNavigate,
   onSeedDemo
@@ -390,6 +437,7 @@ function CommandCenter({
   system: SystemStatus | null;
   hasOperationalData: boolean;
   authRequiredWithoutKey: boolean;
+  demoAvailable: boolean;
   loading: boolean;
   onNavigate: (view: View) => void;
   onSeedDemo: () => Promise<void>;
@@ -408,7 +456,7 @@ function CommandCenter({
             <button
               className="primary-button"
               type="button"
-              disabled={loading || authRequiredWithoutKey}
+              disabled={loading || (authRequiredWithoutKey && !demoAvailable)}
               onClick={() => void onSeedDemo()}
             >
               <Database size={18} />

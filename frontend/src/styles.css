@@ -483,6 +483,12 @@ h2 {
   color: var(--amber);
 }
 
+.notice.info {
+  border-color: rgba(103, 165, 255, 0.36);
+  background: rgba(103, 165, 255, 0.1);
+  color: var(--blue);
+}
+
 .loading-state {
   display: flex;
   align-items: center;

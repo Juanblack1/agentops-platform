@@ -10,12 +10,16 @@ const managedKeys = [
   "GOOGLE_GENERATIVE_AI_API_KEY",
   "GOOGLE_GENERATIVE_AI_MODEL",
   "MASTRA_MODEL",
-  "API_KEYS"
+  "API_KEYS",
+  "DEMO_API_KEY",
+  "VITE_DEMO_API_KEY"
 ];
+const requiredKeys = ["LLM_PROVIDER", "GOOGLE_GENERATIVE_AI_API_KEY", "GOOGLE_GENERATIVE_AI_MODEL", "MASTRA_MODEL", "API_KEYS"];
 
 const project = JSON.parse(await readFile(join(rootDir, ".vercel", "project.json"), "utf8"));
 const localEnv = parseDotenv(await readFile(join(rootDir, "backend", ".env"), "utf8"));
 const adminApiKey = await readOptionalText(join(rootDir, "backend", ".env.local.admin-key"));
+const demoApiKey = valueOf("DEMO_API_KEY", await readOptionalText(join(rootDir, "backend", ".env.local.demo-key")));
 const token = await readVercelToken();
 
 const values = {
@@ -23,14 +27,18 @@ const values = {
   GOOGLE_GENERATIVE_AI_API_KEY: valueOf("GOOGLE_GENERATIVE_AI_API_KEY"),
   GOOGLE_GENERATIVE_AI_MODEL: valueOf("GOOGLE_GENERATIVE_AI_MODEL", "gemini-2.5-flash"),
   MASTRA_MODEL: valueOf("MASTRA_MODEL", "google/gemini-2.5-flash"),
-  API_KEYS: valueOf("API_KEYS", adminApiKey ? `admin:${adminApiKey}` : undefined)
+  API_KEYS: valueOf("API_KEYS", adminApiKey ? `admin:${adminApiKey}` : undefined),
+  DEMO_API_KEY: demoApiKey,
+  VITE_DEMO_API_KEY: valueOf("VITE_DEMO_API_KEY", demoApiKey)
 };
 
-for (const key of managedKeys) {
+for (const key of requiredKeys) {
   if (!values[key]) {
     throw new Error(`${key} is required before syncing Vercel env.`);
   }
 }
+
+const keysToSync = managedKeys.filter((key) => requiredKeys.includes(key) || Boolean(values[key]));
 
 const target = process.env.VERCEL_ENV_TARGET ?? "production";
 const vercel = new Vercel({ bearerToken: token });
@@ -39,7 +47,7 @@ await vercel.projects.createProjectEnv({
   idOrName: process.env.VERCEL_PROJECT_ID ?? project.projectId,
   teamId: process.env.VERCEL_TEAM_ID ?? project.orgId,
   upsert: "true",
-  requestBody: managedKeys.map((key) => ({
+  requestBody: keysToSync.map((key) => ({
     key,
     value: values[key],
     target: [target],
@@ -53,7 +61,7 @@ console.log(
     {
       project: project.projectName,
       target,
-      synced: managedKeys,
+      synced: keysToSync,
       valuesPrinted: false
     },
     null,

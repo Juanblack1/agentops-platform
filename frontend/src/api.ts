@@ -16,6 +16,7 @@ import type {
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.DEV ? "http://localhost:3333" : "");
 const API_KEY_STORAGE_KEY = "agentops.apiKey";
 const API_KEY_LEGACY_STORAGE_KEY = "agentops.apiKey";
+const DEMO_API_KEY = (import.meta.env.VITE_DEMO_API_KEY ?? "").trim();
 let volatileApiKey = "";
 
 export class ApiError extends Error {
@@ -125,14 +126,21 @@ export const api = {
     return getStoredApiKey();
   },
   setApiKey(value: string) {
-    const nextValue = value.trim();
-    volatileApiKey = nextValue;
-    if (nextValue) {
-      writeSessionValue(API_KEY_STORAGE_KEY, nextValue);
-    } else {
-      removeSessionValue(API_KEY_STORAGE_KEY);
+    setStoredApiKey(value);
+  },
+  hasDemoApiKey() {
+    return Boolean(DEMO_API_KEY);
+  },
+  getDemoApiKey() {
+    return DEMO_API_KEY;
+  },
+  activateDemoApiKey() {
+    if (!DEMO_API_KEY) {
+      return false;
     }
-    removeLocalValue(API_KEY_LEGACY_STORAGE_KEY);
+
+    setStoredApiKey(DEMO_API_KEY);
+    return true;
   },
   async system() {
     return request<{ data: SystemStatus }>("/api/system");
@@ -241,6 +249,17 @@ export const api = {
     });
   }
 };
+
+function setStoredApiKey(value: string) {
+  const nextValue = value.trim();
+  volatileApiKey = nextValue;
+  if (nextValue) {
+    writeSessionValue(API_KEY_STORAGE_KEY, nextValue);
+  } else {
+    removeSessionValue(API_KEY_STORAGE_KEY);
+  }
+  removeLocalValue(API_KEY_LEGACY_STORAGE_KEY);
+}
 
 function readSessionValue(key: string) {
   try {

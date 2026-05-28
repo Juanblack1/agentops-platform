@@ -1,27 +1,21 @@
 # AgentOps Platform
 
-Projeto de portfólio para treinar a stack da vaga de Desenvolvedor Backend Sênior com Node.js, TypeScript e IA agêntica.
+AgentOps Platform é uma plataforma corporativa de IA agêntica para operar agentes, documentos RAG, tickets, aprovações humanas, auditoria e eventos de integração em um único painel.
 
-O objetivo é construir uma mini plataforma corporativa de IA com agentes, RAG, auditoria, governança, gateway LLM e caminho claro para Azure.
+O projeto roda localmente sem chaves externas usando LLM mock, embeddings determinísticos e persistência em arquivo. Quando necessário, os mesmos contratos podem ser ligados a LiteLLM, Qdrant, PostgreSQL, Azure Blob Storage, Azure Service Bus, Kubernetes e Azure DevOps.
 
-## O que este primeiro corte entrega
+## Principais recursos
 
-- Backend Node.js/TypeScript com Fastify.
-- Catálogo de agentes corporativos e registry Mastra.
-- RAG local com chunking, embeddings determinísticos e opção de Qdrant.
+- API Node.js/TypeScript com Fastify e separação por adapters.
+- Catálogo de agentes corporativos com registry Mastra.
+- RAG com chunking, embeddings locais e suporte opcional a Qdrant.
 - Gateway LLM com modo `mock` e adapter para LiteLLM.
-- Workflows de triagem, auditoria e eventos internos.
-- Avaliacao automatica de execucoes com scores de RAG, grounding, seguranca e utilidade.
-- Fila human-in-the-loop para aprovar ou rejeitar respostas de alto risco.
-- Persistencia local em JSON atomico com `DATA_STORE=file`.
-- Snapshot operacional para backup em `/api/admin/snapshot`.
-- Outbox de eventos com dispatch local em `/api/outbox/dispatch`.
-- Storage bruto de documentos em disco local ou Azure Blob.
-- Frontend React para operar tickets, documentos, agentes e auditoria.
-- Docker Compose para PostgreSQL, Qdrant e LiteLLM opcional.
-- Azure Container Registry, manifests Kubernetes e pipeline Azure DevOps.
-- Adapter serverless para demo na Vercel sem depender de Azure ligado.
-- Documentação SDD e guia Azure passo a passo.
+- Workflows de triagem de tickets, aprovações humanas e auditoria.
+- Avaliação automática de execuções com scores de RAG, grounding, segurança e utilidade.
+- Outbox para entrega assíncrona de eventos, com modo local ou Azure Service Bus.
+- Upload de documentos com storage local ou Azure Blob Storage.
+- Dashboard React para documentos, tickets, agentes, aprovações, auditoria e arquitetura Azure.
+- Infraestrutura com Docker Compose, Bicep, manifests Kubernetes, Azure DevOps e deploy serverless na Vercel.
 
 ## Como rodar localmente
 
@@ -164,7 +158,7 @@ Para gerar automaticamente um `.env` local com connection strings do Azure:
 
 ```powershell
 $env:AGENTOPS_POSTGRES_PASSWORD="use-a-strong-password"
-.\infra\azure\export-backend-env.ps1 -ResourceGroupName rg-agentops-dev
+.\infra\azure\export-backend-env.ps1 -ResourceGroupName rg-agentops-br-dev
 ```
 
 Para buildar e publicar as imagens no Azure Container Registry sem Docker local:
@@ -253,7 +247,3 @@ agentops-platform/
   docs/           SDD, plano, Azure
   infra/          LiteLLM e manifestos Kubernetes
 ```
-
-## História para entrevista
-
-Este projeto foi desenhado para você conseguir explicar decisões de arquitetura: separação por portas/adapters, fallback local para desenvolvimento, gateway multi-LLM com LiteLLM, RAG com Qdrant, persistência local/PostgreSQL, outbox com Azure Service Bus, RBAC, upload de documentos, governança, avaliação de agentes, aprovação humana e trilha de auditoria, além de um caminho realista para Azure.

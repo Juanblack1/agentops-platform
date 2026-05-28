@@ -2,7 +2,7 @@ import { Agent } from "@mastra/core/agent";
 import { Mastra } from "@mastra/core/mastra";
 import { createTool } from "@mastra/core/tools";
 import { createStep, createWorkflow } from "@mastra/core/workflows";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { agentCatalog } from "../src/agents/catalog";
 import { evaluateGovernance } from "../src/governance/policies";
 import { runTriageWorkflow } from "../src/workflows/triageWorkflow";
@@ -50,7 +50,7 @@ export const ragSearchTool = createTool({
   description: "Busca trechos de conhecimento interno para fundamentar respostas de agentes.",
   inputSchema: z.object({
     query: z.string().min(3),
-    topK: z.number().int().min(1).max(5).default(3)
+    topK: z.number().int().min(1).max(5)
   }),
   outputSchema: z.object({
     results: z.array(contextSchema)
@@ -82,7 +82,7 @@ export const governanceEvaluateTool = createTool({
   inputSchema: z.object({
     prompt: z.string().min(3),
     answer: z.string().min(1),
-    contexts: z.array(contextSchema).default([])
+    contexts: z.array(contextSchema)
   }),
   outputSchema: z.object({
     flags: z.array(
@@ -121,7 +121,7 @@ export const answerComposeTool = createTool({
   description: "Monta uma resposta operacional curta usando contexto recuperado.",
   inputSchema: z.object({
     prompt: z.string().min(3),
-    contexts: z.array(contextSchema).default([])
+    contexts: z.array(contextSchema)
   }),
   outputSchema: z.object({
     draft: z.string(),
@@ -242,12 +242,6 @@ export const supervisorAgent = new Agent({
     ragSearch: ragSearchTool,
     ticketClassify: ticketClassifyTool,
     governanceEvaluate: governanceEvaluateTool
-  },
-  agents: {
-    supportAgent,
-    triageAgent,
-    itSupportAgent,
-    complianceAgent
   }
 });
 

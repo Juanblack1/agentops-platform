@@ -13,7 +13,7 @@ import type {
   Ticket
 } from "./types";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3333";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.DEV ? "http://localhost:3333" : "");
 const API_KEY_STORAGE_KEY = "agentops.apiKey";
 const API_KEY_LEGACY_STORAGE_KEY = "agentops.apiKey";
 let volatileApiKey = "";

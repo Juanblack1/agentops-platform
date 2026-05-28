@@ -312,6 +312,38 @@ npm run vercel:mcp
 
 Tambem existe `.cursor/mcp.json` apontando para o mesmo launcher. O token nao fica salvo nesse arquivo; o launcher usa `VERCEL_TOKEN` ou o login local da Vercel CLI.
 
+## Google Stitch por OAuth
+
+O projeto inclui `@google/stitch-sdk` e `@_davideast/stitch-mcp` para gerar telas e usar o Stitch via MCP. A chave do Google AI Studio pode listar tools em alguns casos, mas a geracao real de projetos/telas do Stitch exige OAuth2.
+
+Fluxo recomendado:
+
+```powershell
+npm run stitch:init
+```
+
+Na janela interativa:
+
+1. Selecione `OAuth`.
+2. Selecione `Proxy (Recommended for Dev)` quando perguntado sobre conexao.
+3. Faca login no navegador com a mesma conta usada no Stitch.
+4. Escolha ou configure um Google Cloud project quando o assistente pedir.
+5. Autorize a habilitacao da API do Stitch se aparecer esse passo.
+
+Depois valide:
+
+```powershell
+npm run stitch:doctor
+```
+
+Para iniciar o proxy MCP manualmente:
+
+```powershell
+npm run stitch:proxy
+```
+
+As skills do Stitch foram instaladas em `~/.codex/skills`, mas o Codex precisa ser reiniciado para carregar essas skills automaticamente.
+
 ## Como ligar LiteLLM depois
 
 1. Configure as variáveis de Azure OpenAI ou outro provider no seu ambiente.

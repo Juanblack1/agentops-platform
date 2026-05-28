@@ -32,12 +32,17 @@
     "azure:destroy-dev": "powershell -ExecutionPolicy Bypass -File infra/azure/destroy-dev.ps1 -NoWait",
     "vercel:deploy": "vercel --prod --yes",
     "vercel:sync-env": "node scripts/sync-vercel-env.mjs",
-    "vercel:mcp": "node scripts/start-vercel-mcp.mjs"
+    "vercel:mcp": "node scripts/start-vercel-mcp.mjs",
+    "stitch:init": "stitch-mcp init --client codex --transport stdio",
+    "stitch:doctor": "stitch-mcp doctor --verbose",
+    "stitch:proxy": "stitch-mcp proxy"
   },
   "engines": {
     "node": ">=22.0.0"
   },
   "devDependencies": {
+    "@_davideast/stitch-mcp": "^0.9.0",
+    "@google/stitch-sdk": "^0.3.5",
     "@vercel/sdk": "^1.21.8",
     "mastra": "^1.10.2"
   }

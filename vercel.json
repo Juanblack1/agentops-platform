@@ -1,6 +1,6 @@
 {
   "installCommand": "npm ci",
-  "buildCommand": "npm run build -w frontend",
+  "buildCommand": "npm run build -w backend && npm run build -w frontend",
   "outputDirectory": "frontend/dist",
   "framework": "vite",
   "functions": {

@@ -14,3 +14,5 @@ infra/azure/main.json
 .vite/
 .vercel/
 .turbo/
+
+.vercel

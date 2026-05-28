@@ -6,7 +6,7 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsup src/index.ts --format esm --dts --clean --out-dir dist",
+    "build": "tsup src/index.ts src/server.ts --format esm --dts --clean --out-dir dist",
     "start": "node dist/index.js",
     "db:migrate": "node scripts/migrate-postgres.mjs",
     "typecheck": "tsc --noEmit",

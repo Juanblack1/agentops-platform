@@ -55,7 +55,7 @@ export class InMemoryStore {
 
     for (const document of snapshot.documents) this.documents.set(document.id, document);
     for (const ticket of snapshot.tickets) this.tickets.set(ticket.id, ticket);
-    for (const run of snapshot.agentRuns) this.agentRuns.set(run.id, run);
+    for (const run of snapshot.agentRuns) this.agentRuns.set(run.id, normalizeAgentRun(run));
     for (const evaluation of snapshot.evaluations) this.evaluations.set(evaluation.id, evaluation);
     for (const approval of snapshot.approvalRequests) this.approvalRequests.set(approval.id, approval);
     for (const event of snapshot.auditEvents) this.auditEvents.set(event.id, event);
@@ -272,6 +272,7 @@ export class InMemoryStore {
       evaluations.length === 0
         ? 0
         : Math.round(evaluations.reduce((total, evaluation) => total + evaluation.overallScore, 0) / evaluations.length);
+    const totalTokens = runs.reduce((total, run) => total + (run.tokenUsage?.totalTokens ?? 0), 0);
 
     return {
       documents: this.documents.size,
@@ -282,9 +283,34 @@ export class InMemoryStore {
       outboxPending: this.listOutboxMessages().filter((message) => message.status === "pending").length,
       outboxFailed: this.listOutboxMessages().filter((message) => message.status === "failed").length,
       auditEvents: this.auditEvents.size,
+      tracedRuns: runs.filter((run) => Boolean(run.traceId)).length,
+      totalTokens,
       averageLatencyMs,
       averageQualityScore,
       runsByAgent
     };
   }
+}
+
+function normalizeAgentRun(run: AgentRun): AgentRun {
+  if (run.traceId && run.provider && run.trace) {
+    return run;
+  }
+
+  const traceId = run.traceId ?? run.id;
+  const provider = run.provider ?? "mock";
+
+  return {
+    ...run,
+    traceId,
+    provider,
+    trace: run.trace ?? {
+      traceId,
+      provider,
+      workflow: "legacy-agent-run",
+      tools: [],
+      tokenUsage: run.tokenUsage,
+      spans: []
+    }
+  };
 }

@@ -12,12 +12,18 @@ if (!connectionString) {
 }
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
-const migrationPath = join(currentDir, "..", "migrations", "001_agentops_snapshot.sql");
-const sql = await readFile(migrationPath, "utf8");
+const migrationPaths = [join(currentDir, "..", "migrations", "001_agentops_snapshot.sql")];
+
+if (process.env.VECTOR_STORE === "pgvector") {
+  migrationPaths.push(join(currentDir, "..", "migrations", "002_agentops_pgvector.sql"));
+}
+
 const pool = new Pool({ connectionString });
 
 try {
-  await pool.query(sql);
+  for (const migrationPath of migrationPaths) {
+    await pool.query(await readFile(migrationPath, "utf8"));
+  }
   console.log("PostgreSQL migrations applied.");
 } finally {
   await pool.end();

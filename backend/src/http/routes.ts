@@ -81,6 +81,12 @@ export async function registerRoutes(app: FastifyInstance, services: RouteServic
       dataStore: services.config.DATA_STORE,
       dataFilePath: services.config.DATA_STORE === "file" ? services.config.DATA_FILE_PATH : null,
       llmProvider: services.config.LLM_PROVIDER,
+      llmModel:
+        services.config.LLM_PROVIDER === "google"
+          ? services.config.GOOGLE_GENERATIVE_AI_MODEL
+          : services.config.LLM_PROVIDER === "litellm"
+            ? services.config.LITELLM_MODEL
+            : "mock-local",
       vectorStore: services.config.VECTOR_STORE,
       qdrantCollection: services.config.QDRANT_COLLECTION
     }
@@ -110,6 +116,20 @@ export async function registerRoutes(app: FastifyInstance, services: RouteServic
   app.get("/api/agent-runs", async () => ({
     data: services.store.listAgentRuns()
   }));
+
+  app.get("/api/traces/:runId", async (request, reply) => {
+    const params = z.object({ runId: z.string().uuid() }).parse(request.params);
+    const run = services.store.findAgentRun(params.runId);
+
+    if (!run) {
+      return reply.code(404).send({
+        error: "not_found",
+        message: "Trace not found for this run."
+      });
+    }
+
+    return { data: run.trace };
+  });
 
   app.get("/api/evaluations", async () => ({
     data: services.store.listAgentEvaluations()

@@ -7,6 +7,21 @@ import { buildServer } from "../src/server";
 // Boundary IN: Fastify routes, in-memory store, RAG retrieval, governance and evaluation services.
 // Boundary OUT: external LLMs, Qdrant and cloud services.
 describe("agent workflow API", () => {
+  it("loads Google and pgvector configuration without requiring external calls", () => {
+    const config = loadConfig({
+      NODE_ENV: "test",
+      LLM_PROVIDER: "google",
+      GOOGLE_GENERATIVE_AI_API_KEY: "test-key",
+      GOOGLE_GENERATIVE_AI_MODEL: "gemini-2.5-flash",
+      VECTOR_STORE: "pgvector",
+      POSTGRES_URL: "postgres://agentops:agentops@localhost:5432/agentops"
+    } as NodeJS.ProcessEnv);
+
+    expect(config.LLM_PROVIDER).toBe("google");
+    expect(config.GOOGLE_GENERATIVE_AI_MODEL).toBe("gemini-2.5-flash");
+    expect(config.VECTOR_STORE).toBe("pgvector");
+  });
+
   it("ingests a document, creates a ticket and runs an agent", async () => {
     const app = await buildServer(
       loadConfig({
@@ -52,7 +67,11 @@ describe("agent workflow API", () => {
     });
 
     expect(runResponse.statusCode).toBe(201);
-    expect(runResponse.json().data.retrievedContext.length).toBeGreaterThan(0);
+    const run = runResponse.json().data;
+    expect(run.retrievedContext.length).toBeGreaterThan(0);
+    expect(run.traceId).toBeTruthy();
+    expect(run.trace.spans.map((traceSpan: { name: string }) => traceSpan.name)).toContain("rag.retrieve");
+    expect(run.provider).toBe("mock");
 
     const metricsResponse = await app.inject({
       method: "GET",
@@ -61,6 +80,16 @@ describe("agent workflow API", () => {
 
     expect(metricsResponse.statusCode).toBe(200);
     expect(metricsResponse.json().data.agentRuns).toBe(1);
+    expect(metricsResponse.json().data.tracedRuns).toBe(1);
+    expect(metricsResponse.json().data.totalTokens).toBeGreaterThan(0);
+
+    const traceResponse = await app.inject({
+      method: "GET",
+      url: `/api/traces/${run.id}`
+    });
+
+    expect(traceResponse.statusCode).toBe(200);
+    expect(traceResponse.json().data.traceId).toBe(run.traceId);
 
     await app.close();
   });
@@ -97,6 +126,7 @@ describe("agent workflow API", () => {
     expect(runResponse.statusCode).toBe(201);
     const run = runResponse.json().data;
     expect(run.safetyFlags.map((flag: { code: string }) => flag.code)).toContain("secret.reference");
+    expect(run.trace.workflow).toBe("agent-run-governance");
 
     const evaluationsResponse = await app.inject({
       method: "GET",

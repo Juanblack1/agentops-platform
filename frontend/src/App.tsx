@@ -7,6 +7,7 @@ import {
   Cloud,
   Database,
   FileText,
+  KeyRound,
   Play,
   RefreshCcw,
   ShieldCheck,
@@ -41,6 +42,8 @@ const emptyMetrics: PlatformMetrics = {
   outboxPending: 0,
   outboxFailed: 0,
   auditEvents: 0,
+  tracedRuns: 0,
+  totalTokens: 0,
   averageLatencyMs: 0,
   averageQualityScore: 0,
   runsByAgent: {
@@ -74,7 +77,20 @@ export default function App() {
   const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
   const [outboxMessages, setOutboxMessages] = useState<OutboxMessage[]>([]);
   const [policies, setPolicies] = useState<GovernancePolicy[]>([]);
-  const [mastra, setMastra] = useState<{ registeredAgents: string[]; model: string } | null>(null);
+  const [mastra, setMastra] = useState<{
+    registeredAgents: string[];
+    registeredTools: string[];
+    registeredWorkflows: string[];
+    model: string;
+    mode: string;
+    studio: {
+      apiCommand: string;
+      studioCommand: string;
+      apiUrl: string;
+      studioUrl: string;
+    };
+  } | null>(null);
+  const [apiKey, setApiKey] = useState(() => api.getApiKey());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -131,6 +147,17 @@ export default function App() {
     void refresh();
   }, []);
 
+  function saveApiKey() {
+    api.setApiKey(apiKey);
+    void refresh();
+  }
+
+  function clearApiKey() {
+    setApiKey("");
+    api.setApiKey("");
+    void refresh();
+  }
+
   const criticalTickets = useMemo(() => tickets.filter((ticket) => ticket.severity === "critical").length, [tickets]);
   const ticketApprovalCount = useMemo(() => tickets.filter((ticket) => ticket.status === "needs_approval").length, [tickets]);
 
@@ -176,9 +203,27 @@ export default function App() {
             <span className="eyebrow">Corporate AI Operations</span>
             <h1>{titleFor(activeView)}</h1>
           </div>
-          <button className="icon-button" onClick={() => void refresh()} type="button" title="Atualizar">
-            <RefreshCcw size={18} />
-          </button>
+          <div className="topbar-actions">
+            <label className="api-key-control">
+              <KeyRound size={16} />
+              <input
+                value={apiKey}
+                onChange={(event) => setApiKey(event.target.value)}
+                placeholder="x-api-key"
+                type="password"
+                autoComplete="off"
+              />
+            </label>
+            <button className="icon-button" onClick={saveApiKey} type="button" title="Salvar API key">
+              <CheckCircle2 size={18} />
+            </button>
+            <button className="icon-button" onClick={clearApiKey} type="button" title="Limpar API key">
+              <XCircle size={18} />
+            </button>
+            <button className="icon-button" onClick={() => void refresh()} type="button" title="Atualizar">
+              <RefreshCcw size={18} />
+            </button>
+          </div>
         </header>
 
         {error ? <div className="notice error">{error}</div> : null}
@@ -252,6 +297,11 @@ function CommandCenter({
               <div>
                 <strong>{run.agentId}</strong>
                 <p>{run.prompt}</p>
+                <div className="tag-row">
+                  <span>trace {run.traceId.slice(0, 8)}</span>
+                  <span>{run.provider}</span>
+                  {run.tokenUsage?.totalTokens ? <span>{run.tokenUsage.totalTokens} tokens</span> : null}
+                </div>
               </div>
               <span>{run.model}</span>
             </article>
@@ -536,12 +586,22 @@ function AgentsPanel({
         {latestRun ? (
           <div className="answer-box">
             <div className="tag-row">
+              <span>trace {latestRun.traceId.slice(0, 8)}</span>
+              <span>{latestRun.provider}</span>
               <span>{latestRun.model}</span>
               <span>{latestRun.latencyMs} ms</span>
               <span>{latestRun.retrievedContext.length} contextos</span>
+              {latestRun.tokenUsage?.totalTokens ? <span>{latestRun.tokenUsage.totalTokens} tokens</span> : null}
               {latestEvaluation ? <span>{latestEvaluation.overallScore}% qualidade</span> : null}
             </div>
             <pre>{latestRun.answer}</pre>
+            <div className="trace-stack">
+              {latestRun.trace.spans.map((span) => (
+                <span key={`${latestRun.id}-${span.name}`}>
+                  {span.name} {span.durationMs} ms
+                </span>
+              ))}
+            </div>
             {latestEvaluation ? (
               <div className="score-strip">
                 <span>RAG {latestEvaluation.retrievalScore}%</span>
@@ -748,7 +808,10 @@ function AuditPanel({
             <article className="audit-row" key={event.id}>
               <div>
                 <strong>{event.type}</strong>
-                <span>{event.actor}</span>
+                <span>
+                  {event.actor}
+                  {typeof event.metadata.traceId === "string" ? ` - trace ${event.metadata.traceId.slice(0, 8)}` : ""}
+                </span>
               </div>
               <time>{formatDate(event.createdAt)}</time>
             </article>
@@ -763,17 +826,29 @@ function AzurePanel({
   mastra,
   metrics
 }: {
-  mastra: { registeredAgents: string[]; model: string } | null;
+  mastra: {
+    registeredAgents: string[];
+    registeredTools: string[];
+    registeredWorkflows: string[];
+    model: string;
+    mode: string;
+    studio: {
+      apiCommand: string;
+      studioCommand: string;
+      apiUrl: string;
+      studioUrl: string;
+    };
+  } | null;
   metrics: PlatformMetrics;
 }) {
   const steps = [
-    "Azure OpenAI conectado via LiteLLM",
-    "Qdrant local ou cloud para busca vetorial",
-    "Service Bus para eventos de workflow",
+    "Vercel entrega a UI e proxy serverless",
+    "Gemini via Vercel AI SDK como LLM real opcional",
+    "PostgreSQL + pgvector para memoria RAG no Azure",
     "Blob Storage para documentos brutos",
-    "Key Vault para segredos",
-    "Container Apps ou AKS para deploy",
-    "Azure Monitor para traces e logs"
+    "Service Bus para outbox e workflows assincronos",
+    "Mastra Studio para agentes, tools e workflow",
+    "Budget Azure com alertas de custo"
   ];
 
   return (
@@ -798,9 +873,9 @@ function AzurePanel({
 
       <div className="metric-grid">
         <Metric icon={Bot} label="Mastra agents" value={mastra?.registeredAgents.length ?? 0} tone="blue" />
-        <Metric icon={Database} label="RAG docs" value={metrics.documents} tone="green" />
-        <Metric icon={ShieldCheck} label="Audit events" value={metrics.auditEvents} tone="orange" />
-        <Metric icon={Workflow} label="Agent runs" value={metrics.agentRuns} tone="red" />
+        <Metric icon={Workflow} label="Tools" value={mastra?.registeredTools.length ?? 0} tone="green" />
+        <Metric icon={ShieldCheck} label="Traces" value={metrics.tracedRuns} tone="orange" />
+        <Metric icon={Database} label="Tokens" value={metrics.totalTokens} tone="red" />
       </div>
     </section>
   );

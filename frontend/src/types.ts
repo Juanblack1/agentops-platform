@@ -41,10 +41,28 @@ export interface Ticket {
 
 export interface AgentRun {
   id: string;
+  traceId: string;
   agentId: AgentId;
   prompt: string;
   answer: string;
   model: string;
+  provider: "mock" | "litellm" | "google";
+  tokenUsage?: {
+    inputTokens?: number;
+    outputTokens?: number;
+    totalTokens?: number;
+  };
+  trace: {
+    traceId: string;
+    provider: "mock" | "litellm" | "google";
+    workflow: string;
+    tools: string[];
+    spans: Array<{
+      name: string;
+      durationMs: number;
+      attributes: Record<string, string | number | boolean>;
+    }>;
+  };
   latencyMs: number;
   retrievedContext: Array<{
     title: string;
@@ -121,6 +139,8 @@ export interface PlatformMetrics {
   outboxPending: number;
   outboxFailed: number;
   auditEvents: number;
+  tracedRuns: number;
+  totalTokens: number;
   averageLatencyMs: number;
   averageQualityScore: number;
   runsByAgent: Record<AgentId, number>;

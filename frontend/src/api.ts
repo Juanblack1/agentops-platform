@@ -13,13 +13,39 @@ import type {
 } from "./types";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3333";
+const API_KEY_STORAGE_KEY = "agentops.apiKey";
+
+function apiKeyHeaders() {
+  const apiKey = localStorage.getItem(API_KEY_STORAGE_KEY);
+  return apiKey ? { "x-api-key": apiKey } : undefined;
+}
+
+function buildHeaders(optionsHeaders?: HeadersInit) {
+  const headers = new Headers(optionsHeaders);
+  headers.set("content-type", "application/json");
+
+  const authHeaders = apiKeyHeaders();
+  if (authHeaders) {
+    headers.set("x-api-key", authHeaders["x-api-key"]);
+  }
+
+  return headers;
+}
+
+function buildMultipartHeaders() {
+  const headers = new Headers();
+  const authHeaders = apiKeyHeaders();
+
+  if (authHeaders) {
+    headers.set("x-api-key", authHeaders["x-api-key"]);
+  }
+
+  return headers;
+}
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: {
-      "content-type": "application/json",
-      ...(options?.headers ?? {})
-    },
+    headers: buildHeaders(options?.headers),
     ...options
   });
 
@@ -34,7 +60,8 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 async function multipartRequest<T>(path: string, body: FormData): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: "POST",
-    body
+    body,
+    headers: buildMultipartHeaders()
   });
 
   if (!response.ok) {
@@ -46,6 +73,17 @@ async function multipartRequest<T>(path: string, body: FormData): Promise<T> {
 }
 
 export const api = {
+  getApiKey() {
+    return localStorage.getItem(API_KEY_STORAGE_KEY) ?? "";
+  },
+  setApiKey(value: string) {
+    const nextValue = value.trim();
+    if (nextValue) {
+      localStorage.setItem(API_KEY_STORAGE_KEY, nextValue);
+    } else {
+      localStorage.removeItem(API_KEY_STORAGE_KEY);
+    }
+  },
   async metrics() {
     return request<{ data: PlatformMetrics }>("/api/metrics");
   },
@@ -53,9 +91,23 @@ export const api = {
     return request<{ data: AgentDefinition[] }>("/api/agents");
   },
   async mastra() {
-    return request<{ data: { framework: string; registeredAgents: string[]; model: string; note: string } }>(
-      "/api/agents/mastra"
-    );
+    return request<{
+      data: {
+        framework: string;
+        mode: string;
+        registeredAgents: string[];
+        registeredTools: string[];
+        registeredWorkflows: string[];
+        model: string;
+        note: string;
+        studio: {
+          apiCommand: string;
+          studioCommand: string;
+          apiUrl: string;
+          studioUrl: string;
+        };
+      };
+    }>("/api/agents/mastra");
   },
   async documents() {
     return request<{ data: DocumentRecord[] }>("/api/documents");

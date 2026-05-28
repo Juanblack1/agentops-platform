@@ -1,4 +1,6 @@
-import type { AgentDefinition, RetrievedContext } from "../domain/types";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { generateText } from "ai";
+import type { AgentDefinition, LlmProvider, RetrievedContext, TokenUsage } from "../domain/types";
 
 export interface GenerateRequest {
   agent: AgentDefinition;
@@ -9,6 +11,8 @@ export interface GenerateRequest {
 export interface GenerateResponse {
   answer: string;
   model: string;
+  provider: LlmProvider;
+  tokenUsage?: TokenUsage;
   latencyMs: number;
 }
 
@@ -40,6 +44,8 @@ export class MockLlmGateway implements LlmGateway {
     return {
       answer,
       model: "mock-local",
+      provider: "mock",
+      tokenUsage: estimateLocalTokenUsage(request.prompt, contextSummary, answer),
       latencyMs: Math.round(performance.now() - startedAt)
     };
   }
@@ -84,11 +90,57 @@ export class LiteLlmGateway implements LlmGateway {
     const data = (await response.json()) as {
       choices?: Array<{ message?: { content?: string } }>;
       model?: string;
+      usage?: {
+        prompt_tokens?: number;
+        completion_tokens?: number;
+        total_tokens?: number;
+      };
     };
 
     return {
       answer: data.choices?.[0]?.message?.content ?? "LiteLLM retornou uma resposta vazia.",
       model: data.model ?? this.model,
+      provider: "litellm",
+      tokenUsage: {
+        inputTokens: data.usage?.prompt_tokens,
+        outputTokens: data.usage?.completion_tokens,
+        totalTokens: data.usage?.total_tokens
+      },
+      latencyMs: Math.round(performance.now() - startedAt)
+    };
+  }
+}
+
+export class GoogleLlmGateway implements LlmGateway {
+  constructor(
+    private readonly apiKey: string,
+    private readonly model: string
+  ) {}
+
+  async generate(request: GenerateRequest): Promise<GenerateResponse> {
+    const startedAt = performance.now();
+    const google = createGoogleGenerativeAI({
+      apiKey: this.apiKey
+    });
+
+    const result = await generateText({
+      model: google(this.model),
+      system: buildSystemPrompt(request.agent, request.context),
+      prompt: request.prompt,
+      temperature: 0.2,
+      maxOutputTokens: 900,
+      maxRetries: 1
+    });
+
+    return {
+      answer: result.text || "Google Gemini retornou uma resposta vazia.",
+      model: this.model,
+      provider: "google",
+      tokenUsage: {
+        inputTokens: result.totalUsage.inputTokens,
+        outputTokens: result.totalUsage.outputTokens,
+        totalTokens: result.totalUsage.totalTokens
+      },
       latencyMs: Math.round(performance.now() - startedAt)
     };
   }
@@ -125,4 +177,19 @@ function buildNextStep(prompt: string) {
   }
 
   return "Validar a resposta com o contexto recuperado e registrar a execucao na trilha de auditoria.";
+}
+
+function estimateLocalTokenUsage(prompt: string, context: string, answer: string): TokenUsage {
+  const inputTokens = estimateTokens(`${prompt}\n${context}`);
+  const outputTokens = estimateTokens(answer);
+
+  return {
+    inputTokens,
+    outputTokens,
+    totalTokens: inputTokens + outputTokens
+  };
+}
+
+function estimateTokens(text: string) {
+  return Math.ceil(text.length / 4);
 }

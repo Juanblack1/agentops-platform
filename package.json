@@ -11,6 +11,9 @@
     "dev": "npm run dev --workspaces --if-present",
     "dev:backend": "npm run dev -w backend",
     "dev:frontend": "npm run dev -w frontend",
+    "mastra:dev": "npm run mastra:dev -w backend",
+    "mastra:studio": "npm run mastra:studio -w backend",
+    "mastra:build": "npm run mastra:build -w backend",
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
@@ -21,6 +24,9 @@
     "k8s:render": "kubectl kustomize infra/k8s",
     "k8s:deploy": "kubectl apply -k infra/k8s",
     "azure:cost-status": "powershell -ExecutionPolicy Bypass -File infra/azure/cost-status.ps1",
+    "azure:create-budget": "powershell -ExecutionPolicy Bypass -File infra/azure/create-budget.ps1",
+    "azure:enable-pgvector": "powershell -ExecutionPolicy Bypass -File infra/azure/enable-pgvector.ps1",
+    "azure:deploy-container-apps": "powershell -ExecutionPolicy Bypass -File infra/azure/deploy-container-apps.ps1",
     "azure:stop-postgres": "powershell -ExecutionPolicy Bypass -File infra/azure/stop-postgres.ps1",
     "azure:start-postgres": "powershell -ExecutionPolicy Bypass -File infra/azure/start-postgres.ps1",
     "azure:destroy-dev": "powershell -ExecutionPolicy Bypass -File infra/azure/destroy-dev.ps1 -NoWait",
@@ -28,5 +34,8 @@
   },
   "engines": {
     "node": ">=22.0.0"
+  },
+  "devDependencies": {
+    "mastra": "^1.10.2"
   }
 }

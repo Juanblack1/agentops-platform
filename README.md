@@ -7,10 +7,10 @@ O projeto roda localmente sem chaves externas usando LLM mock, embeddings determ
 ## Principais recursos
 
 - API Node.js/TypeScript com Fastify e separação por adapters.
-- Catálogo de agentes corporativos com registry Mastra.
-- RAG com chunking, embeddings locais e suporte opcional a Qdrant.
-- Gateway LLM com modo `mock` e adapter para LiteLLM.
-- Workflows de triagem de tickets, aprovações humanas e auditoria.
+- Catálogo de agentes corporativos com Mastra, tools e workflow executável no Mastra Studio.
+- RAG com chunking, embeddings locais e suporte opcional a Qdrant ou PostgreSQL/pgvector.
+- Gateway LLM com modo `mock`, adapter LiteLLM e Google Gemini via Vercel AI SDK.
+- Workflows de triagem de tickets, aprovações humanas, auditoria e rastreamento por `traceId`.
 - Avaliação automática de execuções com scores de RAG, grounding, segurança e utilidade.
 - Outbox para entrega assíncrona de eventos, com modo local ou Azure Service Bus.
 - Upload de documentos com storage local ou Azure Blob Storage.
@@ -95,6 +95,54 @@ Para usar Qdrant, altere `backend/.env`:
 VECTOR_STORE=qdrant
 QDRANT_URL=http://localhost:6333
 ```
+
+Para usar PostgreSQL como vector store com pgvector:
+
+```env
+DATA_STORE=postgres
+VECTOR_STORE=pgvector
+POSTGRES_URL=postgres://agentops:agentops@localhost:5432/agentops
+```
+
+Depois rode:
+
+```powershell
+$env:VECTOR_STORE="pgvector"
+npm run db:migrate
+```
+
+## Como ligar Gemini pelo Vercel AI SDK
+
+Crie uma chave no Google AI Studio e configure somente no seu `.env` local ou nas variáveis da Vercel. Não coloque a chave no README nem no código.
+
+```env
+LLM_PROVIDER=google
+GOOGLE_GENERATIVE_AI_API_KEY=<sua-chave-google-ai-studio>
+GOOGLE_GENERATIVE_AI_MODEL=gemini-2.5-flash
+```
+
+Em produção, o backend exige `API_KEYS` quando `LLM_PROVIDER` não for `mock`. A UI tem um campo `x-api-key` no topo para testar endpoints protegidos sem expor a chave no código.
+
+## Mastra Studio
+
+O projeto registra agentes, tools e workflow no Mastra. Rode a API Mastra:
+
+```powershell
+npm run mastra:dev
+```
+
+Em outro terminal, rode o Studio:
+
+```powershell
+npm run mastra:studio
+```
+
+URLs padrão:
+
+- Mastra API: http://localhost:4111
+- Mastra Studio: http://localhost:3001
+
+O runtime Fastify continua responsável por RAG persistente, RBAC, auditoria, outbox e APIs da UI.
 
 ## Como configurar RBAC por API key
 
@@ -189,6 +237,12 @@ O ambiente Azure de desenvolvimento fica no resource group `rg-agentops-br-dev`.
 npm run azure:cost-status
 ```
 
+Para criar ou atualizar o budget mensal do resource group:
+
+```powershell
+npm run azure:create-budget
+```
+
 Para parar o PostgreSQL quando nao estiver usando:
 
 ```powershell
@@ -200,6 +254,28 @@ Para apagar o ambiente Azure de desenvolvimento e evitar custo recorrente:
 ```powershell
 npm run azure:destroy-dev
 ```
+
+Para preparar pgvector no Azure PostgreSQL, o servidor precisa estar ligado somente durante a janela de configuração/migração:
+
+```powershell
+npm run azure:start-postgres
+npm run azure:enable-pgvector
+$env:VECTOR_STORE="pgvector"
+npm run db:migrate
+npm run azure:stop-postgres
+```
+
+## Azure Container Apps
+
+O alvo de backend em Azure é Container Apps com `minReplicas=0`, mais barato que manter AKS ligado. Depois de publicar a imagem `agentops-backend:<tag>` no ACR:
+
+```powershell
+$env:AGENTOPS_API_KEYS="admin:<long-random-key>"
+$env:GOOGLE_GENERATIVE_AI_API_KEY="<google-ai-studio-key>"
+npm run azure:deploy-container-apps -- -ImageTag dev -LlmProvider google
+```
+
+Se não houver imagem no ACR, o script para antes de criar Container Apps.
 
 ## Deploy Vercel sem custo Azure
 

@@ -22,6 +22,7 @@ brazilsouth
 - Azure Database for PostgreSQL Flexible Server
 - Azure Storage Account with private Blob container
 - Azure Service Bus namespace and topic
+- Azure Cost Management budget `agentops-dev-guardrail`
 
 ## Local files created
 
@@ -63,3 +64,8 @@ npm run azure:destroy-dev
 ```
 
 The PostgreSQL server can automatically start again after 7 days, so destroying the dev resource group is the safest zero-cost option when the environment is not in use.
+
+## Pending activation steps
+
+- `pgvector` is implemented in the application and Bicep template. The existing PostgreSQL server is stopped, so Azure rejected the live allowlist update while stopped. Start PostgreSQL only for the migration window, run `npm run azure:enable-pgvector`, run the migration with `VECTOR_STORE=pgvector`, then stop PostgreSQL again.
+- Azure Container Apps IaC is available in `infra/azure/container-apps.bicep`. It is intentionally not deployed until a backend image exists in ACR and `AGENTOPS_API_KEYS` is configured.

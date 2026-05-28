@@ -5,7 +5,7 @@ import swaggerUi from "@fastify/swagger-ui";
 import fastify from "fastify";
 import { loadConfig, type AppConfig } from "./config/env";
 import { InMemoryEventBus } from "./events/eventBus";
-import { LiteLlmGateway, MockLlmGateway } from "./llm/llmGateway";
+import { GoogleLlmGateway, LiteLlmGateway, MockLlmGateway } from "./llm/llmGateway";
 import { createLogger } from "./observability/logger";
 import { LocalEmbeddingProvider } from "./rag/localEmbedding";
 import { RagService } from "./rag/ragService";
@@ -21,11 +21,13 @@ import { LocalOutboxPublisher, OutboxService, ServiceBusOutboxPublisher } from "
 import { TicketService } from "./services/ticketService";
 import { AzureBlobDocumentStorage, LocalDocumentStorage } from "./storage/documentStorage";
 import { MemoryVectorStore } from "./vector/memoryVectorStore";
+import { PostgresVectorStore } from "./vector/postgresVectorStore";
 import { QdrantVectorStore } from "./vector/qdrantVectorStore";
 import { registerRoutes } from "./http/routes";
 
 export async function buildServer(config: AppConfig = loadConfig()) {
   const logger = createLogger(config);
+  assertProductionAiGuard(config);
   const store =
     config.DATA_STORE === "postgres"
       ? await createPostgresStore(config.POSTGRES_URL)
@@ -37,6 +39,8 @@ export async function buildServer(config: AppConfig = loadConfig()) {
   const vectorStore =
     config.VECTOR_STORE === "qdrant"
       ? new QdrantVectorStore(config.QDRANT_URL, config.QDRANT_COLLECTION, embeddings.dimensions)
+      : config.VECTOR_STORE === "pgvector"
+        ? await PostgresVectorStore.create(requireConfigValue(config.POSTGRES_URL, "POSTGRES_URL"), embeddings.dimensions)
       : new MemoryVectorStore();
 
   const rag = new RagService(store, embeddings, vectorStore);
@@ -44,6 +48,11 @@ export async function buildServer(config: AppConfig = loadConfig()) {
   const llm =
     config.LLM_PROVIDER === "litellm"
       ? new LiteLlmGateway(config.LITELLM_BASE_URL, config.LITELLM_API_KEY, config.LITELLM_MODEL)
+      : config.LLM_PROVIDER === "google"
+        ? new GoogleLlmGateway(
+            requireConfigValue(config.GOOGLE_GENERATIVE_AI_API_KEY, "GOOGLE_GENERATIVE_AI_API_KEY"),
+            config.GOOGLE_GENERATIVE_AI_MODEL
+          )
       : new MockLlmGateway();
 
   const tickets = new TicketService(store, eventBus);
@@ -85,6 +94,10 @@ export async function buildServer(config: AppConfig = loadConfig()) {
 
     if ("close" in store && typeof store.close === "function") {
       await store.close();
+    }
+
+    if ("close" in vectorStore && typeof vectorStore.close === "function") {
+      await vectorStore.close();
     }
   });
 
@@ -164,4 +177,10 @@ function requireConfigValue(value: string, name: string) {
   }
 
   return value;
+}
+
+function assertProductionAiGuard(config: AppConfig) {
+  if (config.NODE_ENV === "production" && config.LLM_PROVIDER !== "mock" && !authIsEnabled(config)) {
+    throw new Error("API_KEYS must be configured before enabling a real LLM provider in production.");
+  }
 }

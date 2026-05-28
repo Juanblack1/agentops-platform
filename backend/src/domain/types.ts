@@ -77,12 +77,41 @@ export interface SafetyFlag {
   message: string;
 }
 
+export type LlmProvider = "mock" | "litellm" | "google";
+
+export interface TokenUsage {
+  inputTokens?: number;
+  outputTokens?: number;
+  totalTokens?: number;
+}
+
+export interface AgentTraceSpan {
+  name: string;
+  startedAt: string;
+  endedAt: string;
+  durationMs: number;
+  attributes: Record<string, string | number | boolean>;
+}
+
+export interface AgentRunTrace {
+  traceId: string;
+  provider: LlmProvider;
+  workflow: string;
+  tools: string[];
+  tokenUsage?: TokenUsage;
+  spans: AgentTraceSpan[];
+}
+
 export interface AgentRun {
   id: string;
+  traceId: string;
   agentId: AgentId;
   prompt: string;
   answer: string;
   model: string;
+  provider: LlmProvider;
+  tokenUsage?: TokenUsage;
+  trace: AgentRunTrace;
   latencyMs: number;
   retrievedContext: RetrievedContext[];
   safetyFlags: SafetyFlag[];
@@ -156,6 +185,8 @@ export interface PlatformMetrics {
   outboxPending: number;
   outboxFailed: number;
   auditEvents: number;
+  tracedRuns: number;
+  totalTokens: number;
   averageLatencyMs: number;
   averageQualityScore: number;
   runsByAgent: Record<AgentId, number>;

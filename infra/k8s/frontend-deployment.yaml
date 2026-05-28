@@ -18,7 +18,7 @@ spec:
           image: agentops.azurecr.io/agentops/frontend:latest
           imagePullPolicy: IfNotPresent
           ports:
-            - containerPort: 80
+            - containerPort: 8080
               name: http
           readinessProbe:
             httpGet:

@@ -1,7 +1,8 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { buildServer } from "../backend/dist/server.js";
 
-let appPromise: ReturnType<typeof buildServer> | undefined;
+type BuildServer = typeof import("../backend/dist/server.js").buildServer;
+
+let appPromise: ReturnType<BuildServer> | undefined;
 
 function applyVercelDefaults() {
   const defaults: Record<string, string> = {
@@ -22,6 +23,7 @@ function applyVercelDefaults() {
 
 async function getApp() {
   applyVercelDefaults();
+  const { buildServer } = await import("../backend/dist/server.js");
   appPromise ??= buildServer();
   return appPromise;
 }

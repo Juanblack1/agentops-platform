@@ -1,0 +1,8 @@
+{
+  "extends": "./backend/tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": ["api/**/*.ts", "backend/src/**/*.ts"]
+}

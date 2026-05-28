@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - qdrant-deployment.yaml
+  - qdrant-service.yaml
+  - backend-deployment.yaml
+  - backend-service.yaml
+  - frontend-deployment.yaml
+  - frontend-service.yaml
+images:
+  - name: agentops.azurecr.io/agentops/backend
+    newName: agentops.azurecr.io/agentops/backend
+    newTag: latest
+  - name: agentops.azurecr.io/agentops/frontend
+    newName: agentops.azurecr.io/agentops/frontend
+    newTag: latest

@@ -104,6 +104,49 @@ describe("security and upload API", () => {
     await app.close();
   });
 
+  it("allows the final-user support flow without exposing operational run details", async () => {
+    const app = await buildServer(
+      loadConfig({
+        NODE_ENV: "test",
+        DATA_STORE: "memory",
+        API_KEYS: "operator:operator-key,reviewer:reviewer-key,admin:admin-key",
+        LLM_PROVIDER: "mock"
+      } as NodeJS.ProcessEnv)
+    );
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/public/support-request",
+      payload: {
+        name: "Cliente Teste",
+        contact: "cliente@example.com",
+        subject: "Portal indisponivel",
+        message: "Nao consigo acessar o portal desde cedo e preciso de uma orientacao objetiva."
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    const payload = response.json().data;
+    expect(payload.requestId).toEqual(expect.any(String));
+    expect(payload.answer).toContain("Recebemos seu pedido.");
+    expect(payload.createdAt).toEqual(expect.any(String));
+    expect(payload.trace).toBeUndefined();
+    expect(payload.model).toBeUndefined();
+    expect(payload.provider).toBeUndefined();
+    expect(payload.retrievedContext).toBeUndefined();
+
+    const protectedRun = await app.inject({
+      method: "POST",
+      url: "/api/agents/support/run",
+      payload: {
+        prompt: "A rota operacional continua protegida."
+      }
+    });
+    expect(protectedRun.statusCode).toBe(401);
+
+    await app.close();
+  });
+
   it("does not expose API documentation by default in production", async () => {
     const app = await buildServer(
       loadConfig({

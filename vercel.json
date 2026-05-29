@@ -31,6 +31,10 @@
       "destination": "/api/index"
     },
     {
+      "source": "/atendimento",
+      "destination": "/index.html"
+    },
+    {
       "source": "/docs/(.*)",
       "destination": "/api/index"
     },

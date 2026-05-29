@@ -39,6 +39,7 @@ import type {
   GovernancePolicy,
   OutboxMessage,
   PlatformMetrics,
+  PublicSupportResponse,
   SystemStatus,
   Ticket
 } from "./types";
@@ -77,6 +78,10 @@ const views: Array<{ id: View; label: string; icon: typeof Activity }> = [
 ];
 
 export default function App() {
+  return isPublicSupportPath() ? <PublicSupportApp /> : <InternalApp />;
+}
+
+function InternalApp() {
   const [activeView, setActiveView] = useState<View>("command");
   const [metrics, setMetrics] = useState<PlatformMetrics>(emptyMetrics);
   const [agents, setAgents] = useState<AgentDefinition[]>([]);
@@ -223,6 +228,11 @@ export default function App() {
           })}
         </nav>
 
+        <a className="customer-entry" href="/atendimento">
+          <MessageSquareText size={18} />
+          <span>Atendimento ao usuario</span>
+        </a>
+
         <div className="runtime-card">
           <span className="eyebrow">Status</span>
           <strong>{agents.length > 0 ? "Agentes prontos" : "Aguardando API"}</strong>
@@ -321,6 +331,244 @@ export default function App() {
         ) : null}
       </main>
     </div>
+  );
+}
+
+type PublicFormState = {
+  name: string;
+  contact: string;
+  subject: string;
+  message: string;
+};
+
+const publicExamples: Array<Pick<PublicFormState, "subject" | "message">> = [
+  {
+    subject: "Portal indisponivel",
+    message: "Nao consigo acessar o portal desde cedo. Preciso entender o que fazer agora."
+  },
+  {
+    subject: "Atualizacao cadastral",
+    message: "Preciso atualizar meus dados cadastrais e quero saber qual e o proximo passo."
+  },
+  {
+    subject: "Status do pedido",
+    message: "Quero acompanhar o andamento do meu pedido e saber quando receberei retorno."
+  }
+];
+
+function PublicSupportApp() {
+  const [form, setForm] = useState<PublicFormState>({
+    name: "",
+    contact: "",
+    subject: "",
+    message: ""
+  });
+  const [response, setResponse] = useState<PublicSupportResponse | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  function updateField(field: keyof PublicFormState, value: string) {
+    setForm((current) => ({
+      ...current,
+      [field]: value
+    }));
+  }
+
+  function useExample(example: Pick<PublicFormState, "subject" | "message">) {
+    setForm((current) => ({
+      ...current,
+      subject: example.subject,
+      message: example.message
+    }));
+    setError("");
+  }
+
+  async function submitRequest(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+
+    if (!form.subject.trim() || form.message.trim().length < 10) {
+      setError("Preencha o assunto e descreva o pedido com pelo menos uma frase.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const result = await api.publicSupportRequest({
+        name: form.name,
+        contact: form.contact,
+        subject: form.subject,
+        message: form.message
+      });
+      setResponse(result.data);
+    } catch (cause) {
+      setError(
+        cause instanceof ApiError && cause.status === 400
+          ? "Confira o assunto e a descricao do pedido antes de enviar."
+          : "Nao conseguimos gerar a resposta agora. Tente novamente em instantes."
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function resetRequest() {
+    setForm({
+      name: "",
+      contact: "",
+      subject: "",
+      message: ""
+    });
+    setResponse(null);
+    setError("");
+  }
+
+  return (
+    <main className="public-shell">
+      <section className="public-workspace" aria-labelledby="public-title">
+        <header className="public-header">
+          <a className="brand-mark public-brand" href="/atendimento" aria-label="AgentOps Atendimento">
+            <Boxes size={22} />
+            <div>
+              <strong>AgentOps</strong>
+              <span>Atendimento</span>
+            </div>
+          </a>
+          <a className="internal-link" href="/">
+            Acesso interno
+            <ArrowRight size={16} />
+          </a>
+        </header>
+
+        <div className="public-layout">
+          <section className="public-intro" aria-label="Atendimento ao usuario">
+            <span className="eyebrow">Canal do usuario final</span>
+            <h1 id="public-title">Envie seu pedido e receba uma resposta agora.</h1>
+            <p>
+              Descreva o que aconteceu em linguagem simples. A plataforma registra o protocolo e usa a IA para devolver
+              uma orientacao objetiva no mesmo fluxo.
+            </p>
+            <div className="public-assurance" aria-label="Garantias do atendimento">
+              <span>
+                <CheckCircle2 size={18} />
+                Sem chave de acesso
+              </span>
+              <span>
+                <MessageSquareText size={18} />
+                Resposta no proprio canal
+              </span>
+              <span>
+                <ShieldCheck size={18} />
+                Pedido registrado para acompanhamento
+              </span>
+            </div>
+          </section>
+
+          <section className="public-panel" aria-label="Enviar pedido">
+            {!response ? (
+              <form onSubmit={submitRequest} className="public-form">
+                <div className="public-form-grid">
+                  <label>
+                    Nome
+                    <input
+                      name="name"
+                      value={form.name}
+                      onChange={(event) => updateField("name", event.target.value)}
+                      placeholder="Seu nome"
+                      autoComplete="name"
+                    />
+                  </label>
+                  <label>
+                    Contato
+                    <input
+                      name="contact"
+                      value={form.contact}
+                      onChange={(event) => updateField("contact", event.target.value)}
+                      placeholder="email ou telefone"
+                      autoComplete="email"
+                    />
+                  </label>
+                </div>
+                <label>
+                  Assunto
+                  <input
+                    name="subject"
+                    value={form.subject}
+                    onChange={(event) => updateField("subject", event.target.value)}
+                    placeholder="Ex.: portal indisponivel"
+                    required
+                  />
+                </label>
+                <label>
+                  Pedido
+                  <textarea
+                    name="message"
+                    value={form.message}
+                    onChange={(event) => updateField("message", event.target.value)}
+                    placeholder="Conte o que voce precisa, o impacto e qualquer detalhe importante."
+                    required
+                    minLength={10}
+                  />
+                </label>
+                <div className="prompt-suggestions" aria-label="Exemplos de pedidos">
+                  {publicExamples.map((example) => (
+                    <button className="suggestion-chip" key={example.subject} type="button" onClick={() => useExample(example)}>
+                      {example.subject}
+                    </button>
+                  ))}
+                </div>
+                {error ? (
+                  <div className="notice error public-notice" role="alert">
+                    <AlertCircle size={18} />
+                    <span>{error}</span>
+                  </div>
+                ) : null}
+                <button className="primary-button public-submit" type="submit" disabled={submitting}>
+                  {submitting ? (
+                    <>
+                      <RefreshCcw size={18} />
+                      Gerando resposta
+                    </>
+                  ) : (
+                    <>
+                      <Send size={18} />
+                      Enviar pedido
+                    </>
+                  )}
+                </button>
+              </form>
+            ) : (
+              <div className="public-answer">
+                <div className="public-answer-heading">
+                  <div>
+                    <span className="eyebrow">Resposta recebida</span>
+                    <h2>Protocolo {shortId(response.requestId)}</h2>
+                  </div>
+                  <CheckCircle2 size={24} />
+                </div>
+                <pre>{response.answer}</pre>
+                {response.needsReview ? (
+                  <div className="notice warning public-notice" role="status">
+                    <ShieldCheck size={18} />
+                    <span>Este pedido tambem foi marcado para conferencia interna.</span>
+                  </div>
+                ) : null}
+                <div className="form-actions">
+                  <button className="primary-button" type="button" onClick={resetRequest}>
+                    <MessageSquareText size={18} />
+                    Enviar outro pedido
+                  </button>
+                  <a className="secondary-link-button" href="/">
+                    Acesso interno
+                    <ArrowRight size={16} />
+                  </a>
+                </div>
+              </div>
+            )}
+          </section>
+        </div>
+      </section>
+    </main>
   );
 }
 
@@ -1516,6 +1764,14 @@ function LoadingState() {
       </div>
     </div>
   );
+}
+
+function isPublicSupportPath() {
+  return window.location.pathname.replace(/\/$/, "") === "/atendimento";
+}
+
+function shortId(value: string) {
+  return value.split("-")[0] ?? value;
 }
 
 function titleFor(view: View) {

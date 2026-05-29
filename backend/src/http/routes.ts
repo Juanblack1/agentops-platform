@@ -54,6 +54,13 @@ const runAgentSchema = z.object({
   actor: z.string().optional()
 });
 
+const publicSupportRequestSchema = z.object({
+  name: z.string().trim().min(2).max(80).optional().default(""),
+  contact: z.string().trim().max(120).optional().default(""),
+  subject: z.string().trim().min(3).max(140),
+  message: z.string().trim().min(10).max(2000)
+});
+
 const approvalDecisionSchema = z.object({
   decision: z.enum(["approved", "rejected"]),
   actor: z.string().min(2).default("local-reviewer"),
@@ -98,6 +105,34 @@ export async function registerRoutes(app: FastifyInstance, services: RouteServic
   app.get("/api/agents/mastra", async () => ({
     data: getMastraRuntimeSummary()
   }));
+
+  app.post("/api/public/support-request", async (request, reply) => {
+    const body = publicSupportRequestSchema.parse(request.body);
+    const customer = body.name || "Usuario final";
+    const ticket = await services.tickets.createTicket({
+      subject: body.subject,
+      description: buildPublicTicketDescription(body),
+      customer,
+      actor: "public-user"
+    });
+    const run = await services.agents.runAgent({
+      agentId: "support",
+      prompt: buildPublicSupportPrompt({
+        ...body,
+        ticketId: ticket.id
+      }),
+      actor: "public-user"
+    });
+
+    return reply.code(201).send({
+      data: {
+        requestId: ticket.id,
+        answer: run.answer,
+        createdAt: run.createdAt,
+        needsReview: run.safetyFlags.some((flag) => flag.severity === "high" || flag.severity === "critical")
+      }
+    });
+  });
 
   app.post("/api/agents/:agentId/run", async (request, reply) => {
     if (requireRole(request, reply, services.config, ["operator", "reviewer", "admin"])) return;
@@ -371,4 +406,33 @@ function requireRole(
     message: `This endpoint requires one of: ${allowedRoles.join(", ")}.`
   });
   return true;
+}
+
+function buildPublicSupportPrompt(input: {
+  ticketId: string;
+  name: string;
+  contact: string;
+  subject: string;
+  message: string;
+}) {
+  const lines = [
+    "Canal: atendimento ao usuario final.",
+    `Protocolo interno: ${input.ticketId}`,
+    `Solicitante: ${input.name || "Nao informado"}`,
+    `Contato: ${input.contact || "Nao informado"}`,
+    `Assunto: ${input.subject}`,
+    "",
+    "Pedido do usuario:",
+    input.message,
+    "",
+    "Responda em portugues do Brasil, diretamente para o usuario final.",
+    "Seja objetivo, humano e claro. Explique o proximo passo quando faltar contexto interno.",
+    "Nao cite provedor, modelo, traces, ferramentas, configuracao, chaves ou detalhes de infraestrutura."
+  ];
+
+  return lines.join("\n");
+}
+
+function buildPublicTicketDescription(input: { contact: string; message: string }) {
+  return [`Contato: ${input.contact || "Nao informado"}`, "", input.message].join("\n");
 }

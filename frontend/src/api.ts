@@ -9,6 +9,7 @@ import type {
   GovernancePolicy,
   OutboxMessage,
   PlatformMetrics,
+  PublicSupportResponse,
   SystemStatus,
   Ticket
 } from "./types";
@@ -17,6 +18,10 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.DEV ?
 const API_KEY_STORAGE_KEY = "agentops.apiKey";
 const API_KEY_LEGACY_STORAGE_KEY = "agentops.apiKey";
 let volatileApiKey = "";
+
+type JsonRequestOptions = RequestInit & {
+  auth?: boolean;
+};
 
 export class ApiError extends Error {
   constructor(
@@ -52,13 +57,15 @@ function apiKeyHeaders() {
   return apiKey ? { "x-api-key": apiKey } : undefined;
 }
 
-function buildHeaders(optionsHeaders?: HeadersInit) {
+function buildHeaders(optionsHeaders?: HeadersInit, includeAuth = true) {
   const headers = new Headers(optionsHeaders);
   headers.set("content-type", "application/json");
 
-  const authHeaders = apiKeyHeaders();
-  if (authHeaders) {
-    headers.set("x-api-key", authHeaders["x-api-key"]);
+  if (includeAuth) {
+    const authHeaders = apiKeyHeaders();
+    if (authHeaders) {
+      headers.set("x-api-key", authHeaders["x-api-key"]);
+    }
   }
 
   return headers;
@@ -75,11 +82,11 @@ function buildMultipartHeaders() {
   return headers;
 }
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const { headers: optionsHeaders, ...restOptions } = options ?? {};
+async function request<T>(path: string, options?: JsonRequestOptions): Promise<T> {
+  const { headers: optionsHeaders, auth = true, ...restOptions } = options ?? {};
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...restOptions,
-    headers: buildHeaders(optionsHeaders)
+    headers: buildHeaders(optionsHeaders, auth)
   });
 
   if (!response.ok) {
@@ -227,6 +234,13 @@ export const api = {
   },
   async policies() {
     return request<{ data: GovernancePolicy[] }>("/api/governance/policies");
+  },
+  async publicSupportRequest(payload: { name?: string; contact?: string; subject: string; message: string }) {
+    return request<{ data: PublicSupportResponse }>("/api/public/support-request", {
+      method: "POST",
+      body: JSON.stringify(payload),
+      auth: false
+    });
   }
 };
 

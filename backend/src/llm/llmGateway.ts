@@ -35,6 +35,7 @@ export class LlmProviderError extends Error {
 export class MockLlmGateway implements LlmGateway {
   async generate(request: GenerateRequest): Promise<GenerateResponse> {
     const startedAt = performance.now();
+    const publicSupportChannel = request.prompt.includes("Canal: atendimento ao usuario final.");
     const contextSummary =
       request.context.length === 0
         ? "Nao encontrei contexto cadastrado para essa pergunta."
@@ -42,16 +43,17 @@ export class MockLlmGateway implements LlmGateway {
             .slice(0, 3)
             .map((context, index) => `${index + 1}. ${context.title}: ${context.content.slice(0, 220)}`)
             .join("\n");
-
-    const answer = [
-      `Resposta simulada do ${request.agent.name}.`,
-      "",
-      "Leitura operacional:",
-      contextSummary,
-      "",
-      "Proximo passo recomendado:",
-      buildNextStep(request.prompt)
-    ].join("\n");
+    const answer = publicSupportChannel
+      ? buildPublicSupportAnswer(request.prompt, request.context.length)
+      : [
+          `Resposta simulada do ${request.agent.name}.`,
+          "",
+          "Leitura operacional:",
+          contextSummary,
+          "",
+          "Proximo passo recomendado:",
+          buildNextStep(request.prompt)
+        ].join("\n");
 
     return {
       answer,
@@ -206,6 +208,35 @@ function buildNextStep(prompt: string) {
   }
 
   return "Validar a resposta com o contexto recuperado e registrar a execucao na trilha de auditoria.";
+}
+
+function buildPublicSupportAnswer(prompt: string, contextCount: number) {
+  const contextNote =
+    contextCount === 0
+      ? "Ainda nao encontrei uma regra interna suficiente para fechar o caso automaticamente."
+      : "Consultei o contexto disponivel para orientar este retorno.";
+
+  return [
+    "Recebemos seu pedido.",
+    "",
+    "Orientacao inicial:",
+    contextNote,
+    buildPublicSupportNextStep(prompt)
+  ].join("\n");
+}
+
+function buildPublicSupportNextStep(prompt: string) {
+  const normalized = prompt.toLowerCase();
+
+  if (normalized.includes("fora") || normalized.includes("indispon")) {
+    return "Se o problema continuar, registre o horario do erro e tente novamente em alguns minutos. O pedido ja ficou registrado para acompanhamento.";
+  }
+
+  if (normalized.includes("contrato") || normalized.includes("lgpd") || normalized.includes("dado")) {
+    return "Informe quais dados precisam de ajuste e aguarde a conferencia antes de compartilhar documentos sensiveis.";
+  }
+
+  return "Guarde o protocolo e acompanhe o retorno pelo canal informado.";
 }
 
 function estimateLocalTokenUsage(prompt: string, context: string, answer: string): TokenUsage {

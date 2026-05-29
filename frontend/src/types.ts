@@ -124,6 +124,13 @@ export interface OutboxMessage {
   deliveredAt?: string;
 }
 
+export interface PublicSupportResponse {
+  requestId: string;
+  answer: string;
+  createdAt: string;
+  needsReview: boolean;
+}
+
 export interface AuditEvent {
   id: string;
   type: string;

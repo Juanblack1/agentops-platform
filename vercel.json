@@ -35,6 +35,10 @@
       "destination": "/index.html"
     },
     {
+      "source": "/operacao",
+      "destination": "/index.html"
+    },
+    {
       "source": "/docs/(.*)",
       "destination": "/api/index"
     },

@@ -427,14 +427,14 @@ function PublicSupportApp() {
     <main className="public-shell">
       <section className="public-workspace" aria-labelledby="public-title">
         <header className="public-header">
-          <a className="brand-mark public-brand" href="/atendimento" aria-label="AgentOps Atendimento">
+          <a className="brand-mark public-brand" href="/" aria-label="AgentOps Atendimento">
             <Boxes size={22} />
             <div>
               <strong>AgentOps</strong>
               <span>Atendimento</span>
             </div>
           </a>
-          <a className="internal-link" href="/">
+          <a className="internal-link" href="/operacao">
             Acesso interno
             <ArrowRight size={16} />
           </a>
@@ -558,7 +558,7 @@ function PublicSupportApp() {
                     <MessageSquareText size={18} />
                     Enviar outro pedido
                   </button>
-                  <a className="secondary-link-button" href="/">
+                  <a className="secondary-link-button" href="/operacao">
                     Acesso interno
                     <ArrowRight size={16} />
                   </a>
@@ -1767,7 +1767,8 @@ function LoadingState() {
 }
 
 function isPublicSupportPath() {
-  return window.location.pathname.replace(/\/$/, "") === "/atendimento";
+  const path = window.location.pathname.replace(/\/$/, "") || "/";
+  return path === "/" || path === "/atendimento";
 }
 
 function shortId(value: string) {

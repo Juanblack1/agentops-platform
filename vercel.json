@@ -10,11 +10,11 @@
     }
   },
   "env": {
-    "DATA_STORE": "memory",
-    "DOCUMENT_STORAGE": "local",
+    "DATA_STORE": "postgres",
+    "DOCUMENT_STORAGE": "azure-blob",
     "DOCUMENT_STORAGE_DIR": "/tmp/agentops-uploads",
-    "VECTOR_STORE": "memory",
-    "OUTBOX_PUBLISHER": "local",
+    "VECTOR_STORE": "pgvector",
+    "OUTBOX_PUBLISHER": "servicebus",
     "SEED_DEMO_DATA": "true",
     "LOG_LEVEL": "warn"
   },

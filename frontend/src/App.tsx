@@ -1,20 +1,26 @@
 import {
   Activity,
   AlertCircle,
+  ArrowRight,
   Bot,
+  BookOpenCheck,
   Boxes,
   CheckCircle2,
+  CircleDot,
   ClipboardList,
-  Cpu,
   Database,
+  FileCheck2,
   FileUp,
   FileText,
-  Gauge,
   KeyRound,
+  LockKeyhole,
+  MessageSquareText,
   Play,
   RadioTower,
   RefreshCcw,
-  Server,
+  Route,
+  SearchCheck,
+  Send,
   ShieldCheck,
   Siren,
   Workflow,
@@ -62,12 +68,12 @@ const emptyMetrics: PlatformMetrics = {
 };
 
 const views: Array<{ id: View; label: string; icon: typeof Activity }> = [
-  { id: "command", label: "Inicio", icon: Activity },
-  { id: "knowledge", label: "Base de conhecimento", icon: Database },
-  { id: "tickets", label: "Tickets", icon: ClipboardList },
-  { id: "agents", label: "Agentes", icon: Bot },
-  { id: "approvals", label: "Revisao humana", icon: ShieldCheck },
-  { id: "audit", label: "Auditoria", icon: ShieldCheck }
+  { id: "command", label: "Visao geral", icon: Activity },
+  { id: "knowledge", label: "Conhecimento", icon: Database },
+  { id: "tickets", label: "Pedidos", icon: ClipboardList },
+  { id: "agents", label: "Responder", icon: Bot },
+  { id: "approvals", label: "Revisar", icon: ShieldCheck },
+  { id: "audit", label: "Auditar", icon: SearchCheck }
 ];
 
 export default function App() {
@@ -314,18 +320,19 @@ export default function App() {
             onNavigate={setActiveView}
           />
         ) : null}
-        {activeView === "knowledge" ? <KnowledgeBase documents={documents} onChanged={refresh} /> : null}
-        {activeView === "tickets" ? <TicketsPanel tickets={tickets} onChanged={refresh} /> : null}
+        {activeView === "knowledge" ? <KnowledgeBase documents={documents} authRequiredWithoutKey={authRequiredWithoutKey} onChanged={refresh} /> : null}
+        {activeView === "tickets" ? <TicketsPanel tickets={tickets} authRequiredWithoutKey={authRequiredWithoutKey} onChanged={refresh} /> : null}
         {activeView === "agents" ? (
-          <AgentsPanel agents={agents} runs={runs} evaluations={evaluations} onRun={refresh} />
+          <AgentsPanel agents={agents} runs={runs} evaluations={evaluations} authRequiredWithoutKey={authRequiredWithoutKey} onRun={refresh} />
         ) : null}
-        {activeView === "approvals" ? <ApprovalsPanel approvals={approvals} onChanged={refresh} /> : null}
+        {activeView === "approvals" ? <ApprovalsPanel approvals={approvals} authRequiredWithoutKey={authRequiredWithoutKey} onChanged={refresh} /> : null}
         {activeView === "audit" ? (
           <AuditPanel
             auditEvents={auditEvents}
             policies={policies}
             evaluations={evaluations}
             outboxMessages={outboxMessages}
+            authRequiredWithoutKey={authRequiredWithoutKey}
             onChanged={refresh}
           />
         ) : null}
@@ -370,46 +377,80 @@ function CommandCenter({
   onNavigate: (view: View) => void;
 }) {
   const nextStep = getCommandNextStep(metrics, authRequiredWithoutKey);
-  const guideSteps = [
+  const journeySteps = [
     {
       number: "1",
-      icon: Database,
-      title: "Carregue conhecimento",
-      text: "Adicione PDFs, planilhas, documentos ou textos que os agentes podem consultar antes de responder.",
-      action: "Abrir base",
+      icon: BookOpenCheck,
+      title: "Ensine o contexto",
+      text: "Coloque regras, runbooks e politicas que os agentes podem consultar.",
+      action: "Abrir conhecimento",
       done: metrics.documents > 0,
-      status: metrics.documents > 0 ? `${metrics.documents} documento(s)` : "Pendente",
+      active: !authRequiredWithoutKey && metrics.documents === 0,
+      status: metrics.documents > 0 ? `${metrics.documents} documento(s)` : "Primeiro passo",
       onClick: () => onNavigate("knowledge")
     },
     {
       number: "2",
       icon: ClipboardList,
-      title: "Crie um ticket",
-      text: "Descreva o problema em linguagem simples. A plataforma classifica severidade e sugere o agente.",
-      action: "Criar ticket",
+      title: "Registre o pedido",
+      text: "Descreva o problema do cliente ou da area afetada em linguagem simples.",
+      action: "Abrir pedidos",
       done: metrics.tickets > 0,
-      status: metrics.tickets > 0 ? `${metrics.tickets} ticket(s)` : "Pendente",
+      active: !authRequiredWithoutKey && metrics.documents > 0 && metrics.tickets === 0,
+      status: metrics.tickets > 0 ? `${metrics.tickets} pedido(s)` : "Depois do contexto",
       onClick: () => onNavigate("tickets")
     },
     {
       number: "3",
-      icon: Bot,
-      title: "Execute um agente",
-      text: "Escolha o agente, envie a pergunta e veja resposta, contexto usado, etapas tecnicas e qualidade.",
-      action: "Usar agente",
+      icon: MessageSquareText,
+      title: "Peça uma resposta",
+      text: "Escolha o papel do agente e veja resposta, fontes consultadas e avaliacao.",
+      action: "Abrir agentes",
       done: metrics.agentRuns > 0,
-      status: metrics.agentRuns > 0 ? `${metrics.agentRuns} execucao(oes)` : "Pendente",
+      active: !authRequiredWithoutKey && metrics.documents > 0 && metrics.tickets > 0 && metrics.agentRuns === 0,
+      status: metrics.agentRuns > 0 ? `${metrics.agentRuns} resposta(s)` : "Depois do pedido",
       onClick: () => onNavigate("agents")
     },
     {
       number: "4",
-      icon: ShieldCheck,
-      title: "Revise e audite",
-      text: "Aprove respostas sensiveis e confira a trilha de auditoria para entender o que aconteceu.",
-      action: "Ver auditoria",
+      icon: FileCheck2,
+      title: "Aprove e prove",
+      text: "Libere respostas sensiveis e confira o historico de decisoes.",
+      action: metrics.pendingApprovals > 0 ? "Abrir revisoes" : "Ver auditoria",
       done: metrics.evaluations > 0 || metrics.auditEvents > 0,
-      status: metrics.pendingApprovals > 0 ? `${metrics.pendingApprovals} pendente(s)` : metrics.auditEvents > 0 ? "Auditado" : "Pendente",
+      active: !authRequiredWithoutKey && metrics.pendingApprovals > 0,
+      status: metrics.pendingApprovals > 0 ? `${metrics.pendingApprovals} pendente(s)` : metrics.auditEvents > 0 ? "Auditado" : "Ultima etapa",
       onClick: () => onNavigate(metrics.pendingApprovals > 0 ? "approvals" : "audit")
+    }
+  ];
+  const taskCards = [
+    {
+      icon: Database,
+      title: "Adicionar base da empresa",
+      text: "Cole uma politica ou envie um arquivo para orientar as respostas.",
+      meta: `${metrics.documents} documento(s)`,
+      target: "knowledge" as const
+    },
+    {
+      icon: ClipboardList,
+      title: "Abrir pedido para triagem",
+      text: "Registre um problema real e deixe a plataforma classificar prioridade.",
+      meta: `${metrics.tickets} pedido(s)`,
+      target: "tickets" as const
+    },
+    {
+      icon: Bot,
+      title: "Gerar resposta auditavel",
+      text: "Escolha um agente e veja o que ele usou para responder.",
+      meta: `${metrics.agentRuns} resposta(s)`,
+      target: "agents" as const
+    },
+    {
+      icon: ShieldCheck,
+      title: "Revisar risco",
+      text: "Aprove ou rejeite respostas que acionaram politica de seguranca.",
+      meta: `${metrics.pendingApprovals} pendente(s)`,
+      target: "approvals" as const
     }
   ];
 
@@ -418,40 +459,44 @@ function CommandCenter({
   }
 
   return (
-    <section className="view-grid">
-      <div className="intro-panel">
-        <div className="intro-copy">
-          <span className="eyebrow">O que este app faz</span>
-          <h2>Um painel de producao para operar agentes de IA com documentos, tickets, revisao humana e auditoria.</h2>
+    <section className="overview-grid">
+      <div className="hero-panel">
+        <div className="hero-copy">
+          <span className="eyebrow">Para que serve</span>
+          <h2>Transforme documentos e pedidos em respostas de IA que podem ser revisadas e auditadas.</h2>
           <p>
-            Cadastre conhecimento da empresa, abra pedidos reais, pergunte aos agentes e revise respostas sensiveis antes
-            de liberar qualquer acao operacional.
+            Use este painel quando precisar responder clientes ou incidentes com base no conhecimento da empresa, mantendo
+            aprovacao humana e historico do que foi feito.
           </p>
           <div className="intro-actions">
-            <button
-              className="primary-button"
-              type="button"
-              disabled={loading || authRequiredWithoutKey}
-              onClick={() => onNavigate("knowledge")}
-            >
-              <Database size={18} />
-              Adicionar documento
+            <button className="primary-button" type="button" disabled={loading} onClick={runNextStep}>
+              <ArrowRight size={18} />
+              {nextStep.action}
             </button>
-            <button className="secondary-button" type="button" disabled={loading || authRequiredWithoutKey} onClick={() => onNavigate("tickets")}>
-              <ClipboardList size={18} />
-              Criar ticket
+            <button className="secondary-button" type="button" onClick={() => onNavigate("agents")}>
+              <Bot size={18} />
+              Ver agentes
             </button>
           </div>
         </div>
 
-        <div className="intro-proof" aria-label="Resumo do fluxo">
-          <strong>Fluxo de producao</strong>
-          <span>1. Cadastre documentos aprovados pela empresa.</span>
-          <span>2. Registre tickets com cliente, impacto e sintomas.</span>
-          <span>3. Execute agentes com contexto recuperado do pgvector.</span>
-          <span>4. Revise riscos e acompanhe auditoria.</span>
+        <div className="outcome-list" aria-label="Resultado esperado">
+          <div>
+            <CircleDot size={16} />
+            <span>O agente responde usando documentos cadastrados.</span>
+          </div>
+          <div>
+            <CircleDot size={16} />
+            <span>Respostas sensiveis ficam presas para revisao.</span>
+          </div>
+          <div>
+            <CircleDot size={16} />
+            <span>A auditoria mostra contexto, qualidade e eventos.</span>
+          </div>
         </div>
       </div>
+
+      {authRequiredWithoutKey ? <AccessCallout /> : null}
 
       <div className="next-step-panel">
         <div>
@@ -459,32 +504,29 @@ function CommandCenter({
           <strong>{nextStep.title}</strong>
           <p>{nextStep.text}</p>
         </div>
-        <button className="primary-button" type="button" disabled={loading || authRequiredWithoutKey} onClick={runNextStep}>
+        <button className="primary-button" type="button" disabled={loading} onClick={runNextStep}>
           <Play size={18} />
           {nextStep.action}
         </button>
       </div>
 
-      <div className="guide-grid" aria-label="Passo a passo recomendado">
-        {guideSteps.map((step) => (
-          <GuideStep key={step.number} {...step} />
+      <div className="journey-grid" aria-label="Fluxo recomendado">
+        {journeySteps.map((step) => (
+          <JourneyStep key={step.number} {...step} />
         ))}
       </div>
 
-      <div className="metric-grid">
-        <Metric icon={Database} label="Conhecimento" value={metrics.documents} tone="green" />
-        <Metric icon={ClipboardList} label="Tickets" value={metrics.tickets} tone="orange" />
-        <Metric icon={Bot} label="Agentes usados" value={metrics.agentRuns} tone="blue" />
-        <Metric icon={Gauge} label="Qualidade media" value={metrics.averageQualityScore} suffix="%" tone="green" />
-        <Metric icon={Cpu} label="Tempo medio" value={metrics.averageLatencyMs} suffix=" ms" tone="blue" />
-        <Metric icon={Workflow} label="Traces" value={metrics.tracedRuns} tone="orange" />
-        <Metric icon={Server} label="Eventos pendentes" value={metrics.outboxPending + metrics.outboxFailed} tone="red" />
-        <Metric
-          icon={Siren}
-          label="Acoes pendentes"
-          value={criticalTickets + ticketApprovalCount + metrics.pendingApprovals + metrics.outboxPending + metrics.outboxFailed}
-          tone="red"
-        />
+      <div className="task-grid" aria-label="Tarefas principais">
+        {taskCards.map((task) => (
+          <TaskCard key={task.title} {...task} onNavigate={onNavigate} locked={authRequiredWithoutKey} />
+        ))}
+      </div>
+
+      <div className="metric-grid compact-metrics">
+        <Metric icon={Database} label="Documentos" value={metrics.documents} tone="green" />
+        <Metric icon={ClipboardList} label="Pedidos" value={metrics.tickets} tone="orange" />
+        <Metric icon={Bot} label="Respostas" value={metrics.agentRuns} tone="blue" />
+        <Metric icon={Siren} label="Pendencias" value={criticalTickets + ticketApprovalCount + metrics.pendingApprovals + metrics.outboxPending + metrics.outboxFailed} tone="red" />
       </div>
 
       <div className="workspace-grid">
@@ -513,11 +555,11 @@ function CommandCenter({
             ))}
             {runs.length === 0 ? (
               <EmptyState
-                title={hasOperationalData ? "Nenhum agente executado" : "Nenhuma execucao registrada"}
+                title={hasOperationalData ? "Nenhuma resposta gerada" : "Nenhum fluxo iniciado"}
                 text={
                   hasOperationalData
-                    ? "Abra o console de agentes para gerar uma resposta com contexto, avaliacao e auditoria."
-                    : "Cadastre conhecimento e crie um ticket para iniciar o fluxo operacional."
+                    ? "Abra Responder para pedir uma resposta com fontes, avaliacao e historico."
+                    : "Comece adicionando conhecimento da empresa. Depois registre um pedido e acione um agente."
                 }
               />
             ) : null}
@@ -527,41 +569,35 @@ function CommandCenter({
         <div className="panel runtime-panel">
           <div className="panel-heading">
             <div>
-              <span className="eyebrow">Por tras da tela</span>
-              <h2>Como a plataforma esta rodando</h2>
+              <span className="eyebrow">Ambiente</span>
+              <h2>Pronto para operar</h2>
             </div>
             <span className={system ? "status-dot ok" : "status-dot"} aria-label={system ? "Backend disponivel" : "Backend indisponivel"} />
           </div>
           <div className="runtime-grid">
-            <RuntimeItem label="IA usada" value={llmProviderLabel(system?.llmProvider)} />
+            <RuntimeItem label="IA" value={llmProviderLabel(system?.llmProvider)} />
             <RuntimeItem label="Modelo" value={system?.llmModel ?? mastra?.model ?? "Aguardando"} />
             <RuntimeItem label="Dados" value={dataStoreLabel(system?.dataStore)} />
-            <RuntimeItem label="Busca de contexto" value={vectorStoreLabel(system?.vectorStore)} />
+            <RuntimeItem label="Contexto" value={vectorStoreLabel(system?.vectorStore)} />
           </div>
           <div className="provider-note">
             <ShieldCheck size={18} />
             <span>
               {system?.llmProvider === "google"
-                ? "Google Gemini esta ativo por padrao no backend. A chave do Google AI Studio fica protegida no ambiente da Vercel, nunca no navegador."
-                : "O backend esta sem provedor de IA real. Configure a chave do Google AI Studio antes de operar em producao."}
+                ? "Gemini esta ativo no backend. A chave do provedor fica no ambiente da Vercel, nao no navegador."
+                : "A IA real ainda nao esta ativa. Configure o provedor antes de usar em producao."}
             </span>
           </div>
           <div className="runtime-list">
             <span>{mastra?.registeredAgents.length ?? 0} agentes</span>
-            <span>{mastra?.registeredTools.length ?? 0} tools</span>
-            <span>{mastra?.registeredWorkflows.length ?? 0} workflow</span>
+            <span>{metrics.averageQualityScore}% qualidade media</span>
+            <span>{metrics.averageLatencyMs} ms em media</span>
           </div>
-          {mastra ? (
-            <div className="command-block">
-              <code>{mastra.studio.apiCommand}</code>
-              <code>{mastra.studio.studioCommand}</code>
-            </div>
-          ) : null}
           <div className="glossary-list">
             <GlossaryItem term="Agente" text="Um papel especializado, como suporte, TI ou compliance." />
-            <GlossaryItem term="Contexto" text="Trechos dos documentos que a IA consulta antes de responder." />
-            <GlossaryItem term="Revisao humana" text="Etapa que segura respostas sensiveis ate alguem aprovar." />
-            <GlossaryItem term="Auditoria" text="Registro das decisoes, eventos e traces de cada execucao." />
+            <GlossaryItem term="Contexto" text="Trechos da base que sustentam a resposta." />
+            <GlossaryItem term="Revisao" text="Aprovacao antes de liberar respostas com risco." />
+            <GlossaryItem term="Auditoria" text="Registro de decisoes, fontes e eventos." />
           </div>
         </div>
       </div>
@@ -569,13 +605,26 @@ function CommandCenter({
   );
 }
 
-function GuideStep({
+function AccessCallout() {
+  return (
+    <div className="access-callout" role="status">
+      <LockKeyhole size={20} />
+      <div>
+        <strong>Chave de acesso necessaria para operar</strong>
+        <p>Cole uma chave no topo para adicionar documentos, criar pedidos, executar agentes e aprovar respostas.</p>
+      </div>
+    </div>
+  );
+}
+
+function JourneyStep({
   number,
   icon: Icon,
   title,
   text,
   action,
   done,
+  active,
   status,
   onClick
 }: {
@@ -585,12 +634,13 @@ function GuideStep({
   text: string;
   action: string;
   done: boolean;
+  active: boolean;
   status: string;
   onClick: () => void;
 }) {
   return (
-    <article className={done ? "guide-card done" : "guide-card"}>
-      <div className="guide-number">{number}</div>
+    <article className={done ? "journey-card done" : active ? "journey-card active" : "journey-card"}>
+      <div className="journey-number">{number}</div>
       <Icon size={20} />
       <strong>{title}</strong>
       <p>{text}</p>
@@ -602,39 +652,70 @@ function GuideStep({
   );
 }
 
+function TaskCard({
+  icon: Icon,
+  title,
+  text,
+  meta,
+  target,
+  locked,
+  onNavigate
+}: {
+  icon: typeof Activity;
+  title: string;
+  text: string;
+  meta: string;
+  target: View;
+  locked: boolean;
+  onNavigate: (view: View) => void;
+}) {
+  return (
+    <button className={locked ? "task-card locked" : "task-card"} type="button" onClick={() => onNavigate(target)}>
+      <Icon size={20} />
+      <span className="task-meta">{locked ? "Requer chave" : meta}</span>
+      <strong>{title}</strong>
+      <p>{text}</p>
+      <span className="task-link">
+        Abrir
+        <ArrowRight size={15} />
+      </span>
+    </button>
+  );
+}
+
 function getCommandNextStep(metrics: PlatformMetrics, authRequiredWithoutKey: boolean) {
   if (authRequiredWithoutKey) {
     return {
-      title: "Informe a chave de acesso",
-      text: "A API de producao exige uma chave operacional. Use uma chave de operador, revisor ou administrador.",
-      action: "Usar chave",
-      target: "knowledge" as const
+      title: "Informe a chave operacional",
+      text: "Sem chave, voce consegue ver o catalogo de agentes. Para salvar dados e executar IA, cole a chave no topo.",
+      action: "Ver orientacao",
+      target: "command" as const
     };
   }
 
   if (metrics.documents === 0) {
     return {
-      title: "Cadastre o primeiro documento",
-      text: "Os agentes precisam de politicas, runbooks ou procedimentos reais para responder com base no contexto da empresa.",
-      action: "Adicionar documento",
+      title: "Adicione o primeiro conhecimento",
+      text: "Os agentes precisam de regras, runbooks ou procedimentos reais para responder com base na empresa.",
+      action: "Adicionar conhecimento",
       target: "knowledge" as const
     };
   }
 
   if (metrics.tickets === 0) {
     return {
-      title: "Crie um ticket operacional",
-      text: "Use uma frase simples sobre um problema do cliente. A plataforma faz a triagem automaticamente.",
-      action: "Criar ticket",
+      title: "Registre um pedido real",
+      text: "Descreva o problema do cliente ou da area. A plataforma classifica prioridade e sugere o agente.",
+      action: "Criar pedido",
       target: "tickets" as const
     };
   }
 
   if (metrics.agentRuns === 0) {
     return {
-      title: "Pergunte a um agente",
-      text: "O console mostra a resposta, os documentos consultados, a avaliacao e o trace tecnico.",
-      action: "Usar agente",
+      title: "Gere a primeira resposta",
+      text: "Escolha um agente, envie a tarefa e confira quais documentos sustentaram a resposta.",
+      action: "Gerar resposta",
       target: "agents" as const
     };
   }
@@ -650,7 +731,7 @@ function getCommandNextStep(metrics: PlatformMetrics, authRequiredWithoutKey: bo
 
   return {
     title: "Confira a auditoria",
-    text: "Use a auditoria para provar qual agente rodou, qual contexto usou e quais controles foram aplicados.",
+    text: "Veja qual agente rodou, qual contexto usou e quais controles foram aplicados.",
     action: "Ver auditoria",
     target: "audit" as const
   };
@@ -665,7 +746,15 @@ function GlossaryItem({ term, text }: { term: string; text: string }) {
   );
 }
 
-function KnowledgeBase({ documents, onChanged }: { documents: DocumentRecord[]; onChanged: () => Promise<void> }) {
+function KnowledgeBase({
+  documents,
+  authRequiredWithoutKey,
+  onChanged
+}: {
+  documents: DocumentRecord[];
+  authRequiredWithoutKey: boolean;
+  onChanged: () => Promise<void>;
+}) {
   const [title, setTitle] = useState("");
   const [tags, setTags] = useState("atendimento, ia");
   const [classification, setClassification] = useState<DocumentRecord["classification"]>("internal");
@@ -673,8 +762,20 @@ function KnowledgeBase({ documents, onChanged }: { documents: DocumentRecord[]; 
   const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
 
+  function fillExample() {
+    setTitle("Runbook de indisponibilidade do portal");
+    setTags("incidente, suporte, portal");
+    setClassification("internal");
+    setContent(
+      "Quando o portal de clientes estiver indisponivel, confirme o horario de inicio, impacto por cliente e sistemas afetados. Comunique que o time tecnico esta investigando, evite prometer prazo sem confirmacao e escale para IT Support se houver indisponibilidade geral."
+    );
+  }
+
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (authRequiredWithoutKey) {
+      return;
+    }
     setSaving(true);
     try {
       await api.createDocument({
@@ -695,7 +796,7 @@ function KnowledgeBase({ documents, onChanged }: { documents: DocumentRecord[]; 
   }
 
   async function submitFile() {
-    if (!file) {
+    if (!file || authRequiredWithoutKey) {
       return;
     }
 
@@ -718,12 +819,20 @@ function KnowledgeBase({ documents, onChanged }: { documents: DocumentRecord[]; 
   }
 
   return (
-    <section className="split-layout">
+    <section className="view-grid">
+      <PanelLead
+        icon={BookOpenCheck}
+        eyebrow="Passo 1"
+        title="Ensine o que os agentes podem usar"
+        text="Adicione regras, procedimentos e documentos aprovados. Sem essa base, a resposta fica menos ligada ao contexto da empresa."
+      />
+      {authRequiredWithoutKey ? <AccessCallout /> : null}
+      <div className="split-layout">
       <form className="panel" onSubmit={(event) => void submit(event)}>
         <div className="panel-heading">
           <div>
-            <span className="eyebrow">Passo 1</span>
-            <h2>Conhecimento para os agentes</h2>
+            <span className="eyebrow">Novo conhecimento</span>
+            <h2>Texto ou regra interna</h2>
           </div>
           <FileText size={20} />
         </div>
@@ -751,10 +860,16 @@ function KnowledgeBase({ documents, onChanged }: { documents: DocumentRecord[]; 
           <span className="field-help">Cole uma regra, procedimento ou orientacao. O agente usa esse texto como contexto.</span>
           <textarea name="document-content" value={content} onChange={(event) => setContent(event.target.value)} minLength={20} autoComplete="off" required />
         </label>
-        <button className="primary-button" type="submit" disabled={saving}>
-          <CheckCircle2 size={18} />
-          Adicionar a base
-        </button>
+        <div className="form-actions">
+          <button className="primary-button" type="submit" disabled={saving || authRequiredWithoutKey}>
+            <CheckCircle2 size={18} />
+            Adicionar conhecimento
+          </button>
+          <button className="secondary-button" type="button" disabled={saving} onClick={fillExample}>
+            <FileCheck2 size={18} />
+            Usar exemplo
+          </button>
+        </div>
         <div className="form-divider" />
         <label>
           Arquivo pronto
@@ -766,17 +881,17 @@ function KnowledgeBase({ documents, onChanged }: { documents: DocumentRecord[]; 
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
           />
         </label>
-        <button className="secondary-button" type="button" disabled={saving || !file} onClick={() => void submitFile()}>
+        <button className="secondary-button" type="button" disabled={saving || !file || authRequiredWithoutKey} onClick={() => void submitFile()}>
           <FileUp size={18} />
-          Enviar documento
+          Enviar arquivo
         </button>
       </form>
 
       <div className="panel">
         <div className="panel-heading">
           <div>
-            <span className="eyebrow">O que a IA sabe</span>
-            <h2>Documentos carregados</h2>
+            <span className="eyebrow">Base disponivel</span>
+            <h2>Documentos que sustentam respostas</h2>
           </div>
           <span className="pill">{documents.length}</span>
         </div>
@@ -786,29 +901,47 @@ function KnowledgeBase({ documents, onChanged }: { documents: DocumentRecord[]; 
               <strong>{document.title}</strong>
               <p>{document.content}</p>
               <div className="tag-row">
-                <span>{document.classification}</span>
-                <span>{document.chunks.length} chunks</span>
+                <span>{classificationLabel(document.classification)}</span>
+                <span>{document.chunks.length} trecho(s)</span>
                 {document.rawStorage ? <span>{document.rawStorage.provider}</span> : null}
               </div>
             </article>
           ))}
           {documents.length === 0 ? (
-            <EmptyState title="Base vazia" text="Adicione pelo menos um documento. Sem isso, o agente responde com menos contexto sobre a empresa." />
+            <EmptyState title="Nenhum conhecimento cadastrado" text="Adicione um documento para que as respostas usem regras da empresa em vez de dependerem apenas do pedido." />
           ) : null}
         </div>
+      </div>
       </div>
     </section>
   );
 }
 
-function TicketsPanel({ tickets, onChanged }: { tickets: Ticket[]; onChanged: () => Promise<void> }) {
+function TicketsPanel({
+  tickets,
+  authRequiredWithoutKey,
+  onChanged
+}: {
+  tickets: Ticket[];
+  authRequiredWithoutKey: boolean;
+  onChanged: () => Promise<void>;
+}) {
   const [subject, setSubject] = useState("");
   const [customer, setCustomer] = useState("");
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
 
+  function fillExample() {
+    setSubject("Portal de clientes fora do ar");
+    setCustomer("Clientes enterprise");
+    setDescription("Desde 09:20, clientes relatam erro 503 ao acessar o portal. O impacto parece geral e impede abertura de chamados.");
+  }
+
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (authRequiredWithoutKey) {
+      return;
+    }
     setSaving(true);
     try {
       await api.createTicket({ subject, customer, description });
@@ -822,12 +955,20 @@ function TicketsPanel({ tickets, onChanged }: { tickets: Ticket[]; onChanged: ()
   }
 
   return (
-    <section className="split-layout">
+    <section className="view-grid">
+      <PanelLead
+        icon={Route}
+        eyebrow="Passo 2"
+        title="Registre o problema que precisa de resposta"
+        text="O pedido vira entrada para triagem: severidade, agente recomendado e historico operacional."
+      />
+      {authRequiredWithoutKey ? <AccessCallout /> : null}
+      <div className="split-layout">
       <form className="panel" onSubmit={(event) => void submit(event)}>
         <div className="panel-heading">
           <div>
-            <span className="eyebrow">Passo 2</span>
-            <h2>Pedido para triagem</h2>
+            <span className="eyebrow">Novo pedido</span>
+            <h2>Dados para triagem</h2>
           </div>
           <Workflow size={20} />
         </div>
@@ -842,13 +983,19 @@ function TicketsPanel({ tickets, onChanged }: { tickets: Ticket[]; onChanged: ()
         </label>
         <label>
           O que aconteceu
-          <span className="field-help">Descreva sintomas, impacto e horario aproximado. O agente usa isso para classificar severidade.</span>
+          <span className="field-help">Inclua sintomas, impacto e horario aproximado para classificar melhor a severidade.</span>
           <textarea name="ticket-description" value={description} onChange={(event) => setDescription(event.target.value)} minLength={10} autoComplete="off" required />
         </label>
-        <button className="primary-button" type="submit" disabled={saving}>
-          <Play size={18} />
-          Criar e triar ticket
-        </button>
+        <div className="form-actions">
+          <button className="primary-button" type="submit" disabled={saving || authRequiredWithoutKey}>
+            <Play size={18} />
+            Criar pedido
+          </button>
+          <button className="secondary-button" type="button" disabled={saving} onClick={fillExample}>
+            <ClipboardList size={18} />
+            Usar exemplo
+          </button>
+        </div>
       </form>
 
       <div className="ticket-board">
@@ -856,19 +1003,20 @@ function TicketsPanel({ tickets, onChanged }: { tickets: Ticket[]; onChanged: ()
           <article className={`ticket-card severity-${ticket.severity}`} key={ticket.id}>
             <div className="ticket-topline">
               <strong>{ticket.subject}</strong>
-              <span>{ticket.severity}</span>
+              <span>{severityLabel(ticket.severity)}</span>
             </div>
             <p>{ticket.description}</p>
             <div className="tag-row">
               <span>{ticket.customer}</span>
-              <span>{ticket.assignedAgent}</span>
-              <span>{ticket.status}</span>
+              <span>{agentLabel(ticket.assignedAgent)}</span>
+              <span>{ticketStatusLabel(ticket.status)}</span>
             </div>
           </article>
         ))}
         {tickets.length === 0 ? (
-          <EmptyState title="Nenhum ticket" text="Crie um pedido para ver como a plataforma classifica severidade, escolhe agente e registra auditoria." />
+          <EmptyState title="Nenhum pedido registrado" text="Crie um pedido para ver a triagem automatica, o agente indicado e o status de atendimento." />
         ) : null}
+      </div>
       </div>
     </section>
   );
@@ -878,11 +1026,13 @@ function AgentsPanel({
   agents,
   runs,
   evaluations,
+  authRequiredWithoutKey,
   onRun
 }: {
   agents: AgentDefinition[];
   runs: AgentRun[];
   evaluations: AgentEvaluation[];
+  authRequiredWithoutKey: boolean;
   onRun: () => Promise<void>;
 }) {
   const [agentId, setAgentId] = useState<AgentId>("supervisor");
@@ -890,7 +1040,13 @@ function AgentsPanel({
   const [running, setRunning] = useState(false);
   const [runError, setRunError] = useState("");
   const [latestRun, setLatestRun] = useState<AgentRun | null>(runs[0] ?? null);
+  const selectedAgent = agents.find((agent) => agent.id === agentId);
   const latestEvaluation = latestRun ? evaluations.find((evaluation) => evaluation.runId === latestRun.id) : undefined;
+  const promptExamples = [
+    "Responda ao cliente sobre indisponibilidade do portal, com tom objetivo e sem prometer prazo.",
+    "Classifique este pedido e diga qual agente deve assumir o atendimento.",
+    "Revise esta resposta e aponte riscos de credenciais, dados sensiveis ou promessa indevida."
+  ];
 
   useEffect(() => {
     if (!latestRun && runs[0]) {
@@ -900,6 +1056,10 @@ function AgentsPanel({
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (authRequiredWithoutKey) {
+      setRunError("Cole uma chave de acesso no topo para executar agentes.");
+      return;
+    }
     setRunning(true);
     setRunError("");
     try {
@@ -915,8 +1075,16 @@ function AgentsPanel({
   }
 
   return (
-    <section className="split-layout agents-layout">
-      <div className="agent-catalog">
+    <section className="view-grid">
+      <PanelLead
+        icon={Send}
+        eyebrow="Passo 3"
+        title="Peça uma resposta e confira as evidencias"
+        text="Escolha o papel certo para a tarefa. A resposta mostra o contexto consultado, alertas de seguranca e avaliacao."
+      />
+      {authRequiredWithoutKey ? <AccessCallout /> : null}
+      <div className="split-layout agents-layout">
+      <div className="agent-catalog" aria-label="Catalogo de agentes">
         {agents.map((agent) => (
           <button
             className={agentId === agent.id ? "agent-tile active" : "agent-tile"}
@@ -926,18 +1094,26 @@ function AgentsPanel({
           >
             <strong>{agent.name}</strong>
             <span>{agent.role}</span>
+            <small>{agent.modelHint}</small>
           </button>
         ))}
+        {agents.length === 0 ? <EmptyState title="Nenhum agente carregado" text="O catalogo publico de agentes nao retornou dados. Atualize a pagina ou confira a API." /> : null}
       </div>
 
       <form className="panel console-panel" onSubmit={(event) => void submit(event)}>
         <div className="panel-heading">
           <div>
-            <span className="eyebrow">Passo 3</span>
-            <h2>Perguntar a um agente</h2>
+            <span className="eyebrow">Resposta assistida</span>
+            <h2>{selectedAgent ? agentLabel(selectedAgent.id) : "Escolha um agente"}</h2>
           </div>
           <Bot size={20} />
         </div>
+        {selectedAgent ? (
+          <div className="agent-role-note">
+            <strong>{selectedAgent.role}</strong>
+            <span>{selectedAgent.instructions}</span>
+          </div>
+        ) : null}
         <label>
           Quem deve responder
           <select name="agent-id" value={agentId} onChange={(event) => setAgentId(event.target.value as AgentId)}>
@@ -950,10 +1126,17 @@ function AgentsPanel({
         </label>
         <label>
           Pergunta ou tarefa
-          <span className="field-help">Use linguagem normal. O sistema recupera contexto, chama o modelo e registra a execucao.</span>
+          <span className="field-help">Use linguagem normal. A plataforma busca contexto, gera resposta e registra o historico.</span>
           <textarea name="agent-prompt" value={prompt} onChange={(event) => setPrompt(event.target.value)} minLength={3} autoComplete="off" required />
         </label>
-        <button className="primary-button" type="submit" disabled={running}>
+        <div className="prompt-suggestions" aria-label="Exemplos de perguntas">
+          {promptExamples.map((example) => (
+            <button className="suggestion-chip" type="button" key={example} onClick={() => setPrompt(example)}>
+              {example}
+            </button>
+          ))}
+        </div>
+        <button className="primary-button" type="submit" disabled={running || authRequiredWithoutKey || agents.length === 0}>
           <Play size={18} />
           {running ? "Gerando..." : "Gerar resposta"}
         </button>
@@ -985,6 +1168,7 @@ function AgentsPanel({
           </div>
         ) : null}
       </form>
+      </div>
     </section>
   );
 }
@@ -1086,10 +1270,21 @@ function traceLabel(name: string) {
   return labels[name] ?? name;
 }
 
-function ApprovalsPanel({ approvals, onChanged }: { approvals: ApprovalRequest[]; onChanged: () => Promise<void> }) {
+function ApprovalsPanel({
+  approvals,
+  authRequiredWithoutKey,
+  onChanged
+}: {
+  approvals: ApprovalRequest[];
+  authRequiredWithoutKey: boolean;
+  onChanged: () => Promise<void>;
+}) {
   const [busyId, setBusyId] = useState("");
 
   async function decide(approval: ApprovalRequest, decision: "approved" | "rejected") {
+    if (authRequiredWithoutKey) {
+      return;
+    }
     setBusyId(approval.id);
     try {
       await api.decideApproval(approval.id, {
@@ -1108,11 +1303,18 @@ function ApprovalsPanel({ approvals, onChanged }: { approvals: ApprovalRequest[]
 
   return (
     <section className="view-grid">
+      <PanelLead
+        icon={ShieldCheck}
+        eyebrow="Passo 4"
+        title="Revise respostas antes de liberar"
+        text="Respostas com credenciais, contexto restrito ou risco de seguranca ficam aqui para decisao humana."
+      />
+      {authRequiredWithoutKey ? <AccessCallout /> : null}
       <div className="panel wide">
         <div className="panel-heading">
           <div>
-            <span className="eyebrow">Passo 4</span>
-            <h2>Respostas que precisam de revisao</h2>
+            <span className="eyebrow">Fila de revisao</span>
+            <h2>Decisoes pendentes</h2>
           </div>
           <span className="pill">{approvals.filter((approval) => approval.status === "pending").length} pendentes</span>
         </div>
@@ -1138,7 +1340,7 @@ function ApprovalsPanel({ approvals, onChanged }: { approvals: ApprovalRequest[]
                   <button
                     className="approve-button"
                     type="button"
-                    disabled={busyId === approval.id}
+                    disabled={busyId === approval.id || authRequiredWithoutKey}
                     onClick={() => void decide(approval, "approved")}
                   >
                     <CheckCircle2 size={18} />
@@ -1147,7 +1349,7 @@ function ApprovalsPanel({ approvals, onChanged }: { approvals: ApprovalRequest[]
                   <button
                     className="reject-button"
                     type="button"
-                    disabled={busyId === approval.id}
+                    disabled={busyId === approval.id || authRequiredWithoutKey}
                     onClick={() => void decide(approval, "rejected")}
                   >
                     <XCircle size={18} />
@@ -1176,18 +1378,23 @@ function AuditPanel({
   policies,
   evaluations,
   outboxMessages,
+  authRequiredWithoutKey,
   onChanged
 }: {
   auditEvents: AuditEvent[];
   policies: GovernancePolicy[];
   evaluations: AgentEvaluation[];
   outboxMessages: OutboxMessage[];
+  authRequiredWithoutKey: boolean;
   onChanged: () => Promise<void>;
 }) {
   const [dispatching, setDispatching] = useState(false);
   const pendingOutbox = outboxMessages.filter((message) => message.status === "pending").length;
 
   async function dispatchOutbox() {
+    if (authRequiredWithoutKey) {
+      return;
+    }
     setDispatching(true);
     try {
       await api.dispatchOutbox();
@@ -1198,7 +1405,15 @@ function AuditPanel({
   }
 
   return (
-    <section className="split-layout">
+    <section className="view-grid">
+      <PanelLead
+        icon={SearchCheck}
+        eyebrow="Auditoria"
+        title="Veja por que a resposta foi gerada"
+        text="Use esta tela para conferir politicas, avaliacao de qualidade, eventos enviados e historico de execucoes."
+      />
+      {authRequiredWithoutKey ? <AccessCallout /> : null}
+      <div className="split-layout">
       <div className="panel">
         <div className="panel-heading">
           <div>
@@ -1238,7 +1453,7 @@ function AuditPanel({
             <button
               className="secondary-button"
               type="button"
-              disabled={dispatching || pendingOutbox === 0}
+              disabled={dispatching || pendingOutbox === 0 || authRequiredWithoutKey}
               onClick={() => void dispatchOutbox()}
             >
               <Play size={16} />
@@ -1281,9 +1496,36 @@ function AuditPanel({
               <time>{formatDate(event.createdAt)}</time>
             </article>
           ))}
+          {auditEvents.length === 0 ? <EmptyState title="Nenhum evento auditado" text="Quando documentos, pedidos e agentes forem usados, o historico aparece aqui." /> : null}
         </div>
       </div>
+      </div>
     </section>
+  );
+}
+
+function PanelLead({
+  icon: Icon,
+  eyebrow,
+  title,
+  text
+}: {
+  icon: typeof Activity;
+  eyebrow: string;
+  title: string;
+  text: string;
+}) {
+  return (
+    <div className="panel-lead">
+      <div className="panel-lead-icon">
+        <Icon size={22} />
+      </div>
+      <div>
+        <span className="eyebrow">{eyebrow}</span>
+        <h2>{title}</h2>
+        <p>{text}</p>
+      </div>
+    </div>
   );
 }
 
@@ -1336,7 +1578,7 @@ function LoadingState() {
       <span className="loading-dot" />
       <div>
         <strong>Carregando dados da plataforma</strong>
-        <p>Buscando agentes, documentos, tickets e auditoria.</p>
+        <p>Buscando agentes, documentos, pedidos e auditoria.</p>
       </div>
     </div>
   );
@@ -1344,26 +1586,67 @@ function LoadingState() {
 
 function titleFor(view: View) {
   const titles: Record<View, string> = {
-    command: "Fluxo guiado da plataforma",
-    knowledge: "Base de conhecimento",
-    tickets: "Triagem de tickets",
-    agents: "Console de agentes",
+    command: "Painel de operacao",
+    knowledge: "Conhecimento",
+    tickets: "Pedidos",
+    agents: "Responder com agentes",
     approvals: "Revisao humana",
-    audit: "Auditoria e governanca"
+    audit: "Auditoria"
   };
   return titles[view];
 }
 
 function summaryFor(view: View) {
   const summaries: Record<View, string> = {
-    command: "Siga os passos para entender como documentos, tickets, agentes, revisao humana e auditoria trabalham juntos.",
-    knowledge: "Cadastre regras, runbooks e politicas para que os agentes respondam com base no conhecimento da empresa.",
-    tickets: "Abra um pedido ou incidente para ver classificacao de severidade, responsavel e status.",
-    agents: "Escolha um agente, envie uma pergunta e veja a resposta com contexto, tempo, qualidade e seguranca.",
-    approvals: "Revise respostas que envolvem dados sensiveis, credenciais ou contexto restrito antes de liberar.",
-    audit: "Acompanhe politicas, avaliacoes e eventos que provam o que aconteceu em cada execucao."
+    command: "Veja o proximo passo para sair de uma base vazia ate uma resposta revisada e auditavel.",
+    knowledge: "Adicione regras, runbooks e politicas que os agentes podem consultar antes de responder.",
+    tickets: "Registre o problema que precisa de resposta e deixe a plataforma classificar prioridade.",
+    agents: "Escolha o papel certo, envie a tarefa e confira contexto, qualidade e seguranca.",
+    approvals: "Decida se respostas sensiveis podem ser liberadas ou precisam ser rejeitadas.",
+    audit: "Confira politicas, avaliacoes, eventos e historico de execucoes."
   };
   return summaries[view];
+}
+
+function agentLabel(value: AgentId) {
+  const labels: Record<AgentId, string> = {
+    supervisor: "Supervisor",
+    support: "Atendimento",
+    triage: "Triagem",
+    "it-support": "Suporte tecnico",
+    compliance: "Compliance"
+  };
+  return labels[value];
+}
+
+function classificationLabel(value: DocumentRecord["classification"]) {
+  const labels: Record<DocumentRecord["classification"], string> = {
+    public: "Publico",
+    internal: "Interno",
+    confidential: "Confidencial",
+    restricted: "Restrito"
+  };
+  return labels[value];
+}
+
+function severityLabel(value: Ticket["severity"]) {
+  const labels: Record<Ticket["severity"], string> = {
+    low: "Baixa",
+    medium: "Media",
+    high: "Alta",
+    critical: "Critica"
+  };
+  return labels[value];
+}
+
+function ticketStatusLabel(value: Ticket["status"]) {
+  const labels: Record<Ticket["status"], string> = {
+    new: "Novo",
+    triaged: "Triado",
+    needs_approval: "Requer revisao",
+    answered: "Respondido"
+  };
+  return labels[value];
 }
 
 function llmProviderLabel(value?: string) {
@@ -1379,7 +1662,7 @@ function dataStoreLabel(value?: string) {
   const labels: Record<string, string> = {
     memory: "Temporario",
     file: "Arquivo local",
-    postgres: "PostgreSQL"
+    postgres: "Banco de dados"
   };
   return value ? (labels[value] ?? value) : "Aguardando";
 }
@@ -1387,8 +1670,8 @@ function dataStoreLabel(value?: string) {
 function vectorStoreLabel(value?: string) {
   const labels: Record<string, string> = {
     memory: "Contexto temporario",
-    qdrant: "Qdrant",
-    pgvector: "pgvector"
+    qdrant: "Busca vetorial",
+    pgvector: "Busca semantica"
   };
   return value ? (labels[value] ?? value) : "Aguardando";
 }

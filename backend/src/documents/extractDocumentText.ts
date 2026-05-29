@@ -1,6 +1,5 @@
 import { convert as htmlToText } from "html-to-text";
 import mammoth from "mammoth";
-import { PDFParse } from "pdf-parse";
 import readXlsxFile from "read-excel-file/node";
 import { TextDecoder } from "node:util";
 
@@ -131,6 +130,8 @@ function isExtensionOptionalForMime(format: UploadedDocumentFormat, extension: s
 }
 
 async function extractPdfText(buffer: Buffer) {
+  ensurePdfTextExtractionGlobals();
+  const { PDFParse } = await import("pdf-parse");
   const parser = new PDFParse({
     data: new Uint8Array(buffer),
     isEvalSupported: false,
@@ -144,6 +145,60 @@ async function extractPdfText(buffer: Buffer) {
     throw new DocumentExtractionError(400, "unsupported_document", "Nao foi possivel ler texto deste PDF.");
   } finally {
     await parser.destroy();
+  }
+}
+
+function ensurePdfTextExtractionGlobals() {
+  const globals = globalThis as Record<string, unknown>;
+
+  if (globals.DOMMatrix) {
+    return;
+  }
+
+  globals.DOMMatrix = LightweightDOMMatrix;
+}
+
+class LightweightDOMMatrix {
+  a = 1;
+  b = 0;
+  c = 0;
+  d = 1;
+  e = 0;
+  f = 0;
+
+  constructor(init?: number[]) {
+    if (!Array.isArray(init)) {
+      return;
+    }
+
+    [this.a, this.b, this.c, this.d, this.e, this.f] = [
+      init[0] ?? this.a,
+      init[1] ?? this.b,
+      init[2] ?? this.c,
+      init[3] ?? this.d,
+      init[4] ?? this.e,
+      init[5] ?? this.f
+    ];
+  }
+
+  multiplySelf() {
+    return this;
+  }
+
+  preMultiplySelf() {
+    return this;
+  }
+
+  translate() {
+    return this;
+  }
+
+  scale() {
+    return this;
+  }
+
+  invertSelf() {
+    return this;
   }
 }
 

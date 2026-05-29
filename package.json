@@ -2,7 +2,7 @@
   "name": "agentops-platform",
   "version": "0.1.0",
   "private": true,
-  "description": "Corporate agentic AI platform portfolio project with Node.js, TypeScript, Mastra, RAG, LiteLLM and Azure-ready architecture.",
+  "description": "Corporate agentic AI platform with Node.js, TypeScript, Mastra, RAG, LiteLLM and Azure-ready architecture.",
   "packageManager": "npm@11.11.1",
   "workspaces": [
     "backend",

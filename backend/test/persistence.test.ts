@@ -13,11 +13,10 @@ describe("persistent store API", () => {
   it("restores saved platform data and reindexes RAG context after restart", async () => {
     const filePath = join(mkdtempSync(join(tmpdir(), "agentops-store-")), "store.json");
     const config = loadConfig({
-      NODE_ENV: "test",
-      DATA_STORE: "file",
-      DATA_FILE_PATH: filePath,
-      SEED_DEMO_DATA: "false"
-    } as NodeJS.ProcessEnv);
+    NODE_ENV: "test",
+    DATA_STORE: "file",
+    DATA_FILE_PATH: filePath
+  } as NodeJS.ProcessEnv);
 
     const firstApp = await buildServer(config);
 

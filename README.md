@@ -121,7 +121,7 @@ GOOGLE_GENERATIVE_AI_API_KEY=<sua-chave-google-ai-studio>
 GOOGLE_GENERATIVE_AI_MODEL=gemini-2.5-flash
 ```
 
-Em producao, o backend exige uma chave da propria plataforma quando `LLM_PROVIDER` nao for `mock`. A chave do Google fica somente no backend/Vercel e nunca deve ser colocada no frontend. A UI tem um campo de chave de acesso para operadores e tambem pode mostrar um botao de modo demo quando `DEMO_API_KEY` e `VITE_DEMO_API_KEY` estiverem configuradas.
+Em producao, o backend exige uma chave da propria plataforma quando `LLM_PROVIDER` nao for `mock`. A chave do Google fica somente no backend/Vercel e nunca deve ser colocada no frontend. A UI tem um campo de chave de acesso para operadores, revisores e administradores.
 
 ## Mastra Studio
 
@@ -150,10 +150,6 @@ No `backend/.env`:
 
 ```env
 API_KEYS=operator:dev-operator-key,reviewer:dev-reviewer-key,admin:dev-admin-key
-DEMO_API_KEY=uma-chave-demo-longa
-DEMO_RATE_LIMIT_MAX=30
-DEMO_RATE_LIMIT_WINDOW_MS=600000
-VITE_DEMO_API_KEY=uma-chave-demo-longa
 ```
 
 Depois envie `x-api-key` nas chamadas. Roles:
@@ -161,7 +157,6 @@ Depois envie `x-api-key` nas chamadas. Roles:
 - `operator`: cria tickets, documentos e executa agentes.
 - `reviewer`: tambem decide aprovacoes.
 - `admin`: acessa snapshot e dispatch da outbox.
-- `DEMO_API_KEY`: funciona como `operator` publico, com limite temporario para proteger custo e abuso. Use somente para demonstracao.
 
 ## Como publicar outbox no Azure Service Bus
 
@@ -284,18 +279,19 @@ npm run azure:deploy-container-apps -- -ImageTag dev -LlmProvider google
 
 Se não houver imagem no ACR, o script para antes de criar Container Apps.
 
-## Deploy Vercel sem custo Azure
+## Deploy Vercel com backend duravel
 
-O projeto inclui `vercel.json` e `api/index.ts` para rodar a UI React e a API Fastify como funcoes serverless na Vercel. Por padrao esse modo usa:
+O projeto inclui `vercel.json` e `api/index.ts` para rodar a UI React e a API Fastify como funcoes serverless na Vercel. Em producao, configure variaveis reais para:
 
 ```txt
-DATA_STORE=memory
-LLM_PROVIDER=mock
-VECTOR_STORE=memory
-OUTBOX_PUBLISHER=local
+DATA_STORE=postgres
+DOCUMENT_STORAGE=azure-blob
+LLM_PROVIDER=google
+VECTOR_STORE=pgvector
+OUTBOX_PUBLISHER=servicebus
 ```
 
-Assim a demo online funciona sem manter PostgreSQL, Service Bus ou Blob Storage ligados no Azure.
+Sem essas variaveis, o deploy ainda pode iniciar com defaults locais, mas nao deve ser considerado ambiente operacional.
 
 ```powershell
 npm run vercel:deploy
@@ -309,7 +305,7 @@ O projeto inclui automacao com `@vercel/sdk` para atualizar as variaveis de Prod
 npm run vercel:sync-env
 ```
 
-Esse comando le `backend/.env`, `backend/.env.local.admin-key`, `backend/.env.local.demo-key`, `.vercel/project.json` e o token ja autenticado pela Vercel CLI. As variaveis sincronizadas sao `LLM_PROVIDER`, `GOOGLE_GENERATIVE_AI_API_KEY`, `GOOGLE_GENERATIVE_AI_MODEL`, `MASTRA_MODEL`, `API_KEYS`, `DEMO_API_KEY` e `VITE_DEMO_API_KEY` quando houver chave demo.
+Esse comando le `backend/.env`, `backend/.env.local.admin-key`, `.vercel/project.json` e o token ja autenticado pela Vercel CLI. As variaveis sincronizadas sao `LLM_PROVIDER`, `GOOGLE_GENERATIVE_AI_API_KEY`, `GOOGLE_GENERATIVE_AI_MODEL`, `MASTRA_MODEL` e `API_KEYS`.
 
 Para iniciar o MCP local da Vercel via SDK:
 

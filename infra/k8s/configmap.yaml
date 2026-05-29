@@ -22,4 +22,3 @@ data:
   QDRANT_COLLECTION: agentops_documents
   UPLOAD_MAX_BYTES: "1000000"
   OTEL_SERVICE_NAME: agentops-backend
-  SEED_DEMO_DATA: "false"

@@ -69,8 +69,7 @@ $lines = @(
   "QDRANT_COLLECTION=agentops_documents",
   "LLM_PROVIDER=litellm",
   "LITELLM_BASE_URL=http://litellm:4000",
-  "LITELLM_MODEL=azure-gpt-4o-mini",
-  "SEED_DEMO_DATA=false"
+  "LITELLM_MODEL=azure-gpt-4o-mini"
 )
 
 $resolvedOutputPath = Join-Path (Resolve-Path -Path ".") $OutputPath

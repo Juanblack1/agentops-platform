@@ -26,8 +26,7 @@ describe("agent workflow API", () => {
     const app = await buildServer(
       loadConfig({
         NODE_ENV: "test",
-        DATA_STORE: "memory",
-        SEED_DEMO_DATA: "false"
+        DATA_STORE: "memory"
       } as NodeJS.ProcessEnv)
     );
 
@@ -101,8 +100,7 @@ describe("agent workflow API", () => {
     const app = await buildServer(
       loadConfig({
         NODE_ENV: "test",
-        DATA_STORE: "memory",
-        SEED_DEMO_DATA: "false"
+        DATA_STORE: "memory"
       } as NodeJS.ProcessEnv)
     );
 

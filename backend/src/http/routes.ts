@@ -11,7 +11,6 @@ import type { InMemoryStore } from "../repositories/inMemoryStore";
 import { authIsEnabled, getRequestRole, type ApiRole } from "../security/apiKeys";
 import type { AgentOrchestrator } from "../services/agentOrchestrator";
 import type { ApprovalService } from "../services/approvalService";
-import { seedDemoData } from "../services/demoSeed";
 import type { OutboxService } from "../services/outboxService";
 import type { TicketService } from "../services/ticketService";
 import type { DocumentStorage } from "../storage/documentStorage";
@@ -341,13 +340,6 @@ export async function registerRoutes(app: FastifyInstance, services: RouteServic
     data: governancePolicies
   }));
 
-  app.post("/api/demo/seed", async (request, reply) => {
-    if (requireRole(request, reply, services.config, ["operator", "reviewer", "admin"])) return;
-    await seedDemoData(services.store, services.rag, services.tickets);
-    return {
-      data: services.store.metrics()
-    };
-  });
 }
 
 function requireRole(

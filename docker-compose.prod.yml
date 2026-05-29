@@ -63,7 +63,6 @@ services:
       AZURE_STORAGE_CONTAINER: ${AZURE_STORAGE_CONTAINER:-agentops-documents}
       UPLOAD_MAX_BYTES: ${UPLOAD_MAX_BYTES:-1000000}
       OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-agentops-backend}
-      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
     volumes:
       - document-data:/app/data/uploads
     healthcheck:

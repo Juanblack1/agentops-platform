@@ -1,6 +1,6 @@
 # Kubernetes Deployment
 
-These manifests target AKS or any Kubernetes cluster. They assume PostgreSQL, Blob Storage and Service Bus are managed services from Azure, while Qdrant runs inside the cluster for the portfolio demo.
+These manifests target AKS or any Kubernetes cluster. They assume PostgreSQL, Blob Storage and Service Bus are managed services from Azure, while Qdrant runs inside the cluster for vector search.
 
 ## Required secret
 

@@ -6,7 +6,7 @@ Aceito.
 
 ## Contexto
 
-A vaga exige integracao com multiplos LLMs e LiteLLM. Acoplar o backend diretamente a um SDK de provider criaria lock-in e dificultaria testes locais.
+A plataforma exige integracao com multiplos LLMs e LiteLLM. Acoplar o backend diretamente a um SDK de provider criaria lock-in e dificultaria testes locais.
 
 ## Decisao
 

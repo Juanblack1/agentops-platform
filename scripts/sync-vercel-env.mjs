@@ -10,16 +10,13 @@ const managedKeys = [
   "GOOGLE_GENERATIVE_AI_API_KEY",
   "GOOGLE_GENERATIVE_AI_MODEL",
   "MASTRA_MODEL",
-  "API_KEYS",
-  "DEMO_API_KEY",
-  "VITE_DEMO_API_KEY"
+  "API_KEYS"
 ];
 const requiredKeys = ["LLM_PROVIDER", "GOOGLE_GENERATIVE_AI_API_KEY", "GOOGLE_GENERATIVE_AI_MODEL", "MASTRA_MODEL", "API_KEYS"];
 
 const project = JSON.parse(await readFile(join(rootDir, ".vercel", "project.json"), "utf8"));
 const localEnv = parseDotenv(await readFile(join(rootDir, "backend", ".env"), "utf8"));
 const adminApiKey = await readOptionalText(join(rootDir, "backend", ".env.local.admin-key"));
-const demoApiKey = valueOf("DEMO_API_KEY", await readOptionalText(join(rootDir, "backend", ".env.local.demo-key")));
 const token = await readVercelToken();
 
 const values = {
@@ -27,9 +24,7 @@ const values = {
   GOOGLE_GENERATIVE_AI_API_KEY: valueOf("GOOGLE_GENERATIVE_AI_API_KEY"),
   GOOGLE_GENERATIVE_AI_MODEL: valueOf("GOOGLE_GENERATIVE_AI_MODEL", "gemini-2.5-flash"),
   MASTRA_MODEL: valueOf("MASTRA_MODEL", "google/gemini-2.5-flash"),
-  API_KEYS: valueOf("API_KEYS", adminApiKey ? `admin:${adminApiKey}` : undefined),
-  DEMO_API_KEY: demoApiKey,
-  VITE_DEMO_API_KEY: valueOf("VITE_DEMO_API_KEY", demoApiKey)
+  API_KEYS: valueOf("API_KEYS", adminApiKey ? `admin:${adminApiKey}` : undefined)
 };
 
 for (const key of requiredKeys) {

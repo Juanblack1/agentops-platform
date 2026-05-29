@@ -15,7 +15,6 @@ function applyVercelDefaults() {
     MASTRA_MODEL: "google/gemini-2.5-flash",
     VECTOR_STORE: "memory",
     OUTBOX_PUBLISHER: "local",
-    SEED_DEMO_DATA: "true",
     LOG_LEVEL: "warn"
   };
 

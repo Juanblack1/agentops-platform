@@ -210,10 +210,6 @@ resource backendApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'AZURE_SERVICE_BUS_TOPIC'
               value: azureServiceBusTopic
             }
-            {
-              name: 'SEED_DEMO_DATA'
-              value: 'true'
-            }
           ]
         }
       ]

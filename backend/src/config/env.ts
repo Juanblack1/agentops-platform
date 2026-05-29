@@ -17,9 +17,6 @@ const EnvSchema = z.object({
   DATA_FILE_PATH: z.string().default("../data/agentops-store.json"),
   POSTGRES_URL: z.string().optional().default(""),
   API_KEYS: z.string().optional().default(""),
-  DEMO_API_KEY: z.string().optional().default(""),
-  DEMO_RATE_LIMIT_MAX: z.coerce.number().int().nonnegative().default(30),
-  DEMO_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(600_000),
   LLM_PROVIDER: z.preprocess(emptyStringToUndefined, z.enum(["mock", "litellm", "google"]).default("mock")),
   LITELLM_BASE_URL: z.string().url().default("http://localhost:4000"),
   LITELLM_API_KEY: z.string().optional().default(""),
@@ -39,11 +36,7 @@ const EnvSchema = z.object({
   DOCUMENT_STORAGE_DIR: z.string().default("../data/uploads"),
   AZURE_STORAGE_CONNECTION_STRING: z.string().optional().default(""),
   AZURE_STORAGE_CONTAINER: z.string().default("agentops-documents"),
-  OTEL_SERVICE_NAME: z.string().default("agentops-backend"),
-  SEED_DEMO_DATA: z
-    .string()
-    .default("true")
-    .transform((value) => value.toLowerCase() === "true")
+  OTEL_SERVICE_NAME: z.string().default("agentops-backend")
 }).transform((config) => ({
   ...config,
   ENABLE_API_DOCS: config.ENABLE_API_DOCS ?? config.NODE_ENV !== "production"

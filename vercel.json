@@ -15,7 +15,6 @@
     "DOCUMENT_STORAGE_DIR": "/tmp/agentops-uploads",
     "VECTOR_STORE": "pgvector",
     "OUTBOX_PUBLISHER": "servicebus",
-    "SEED_DEMO_DATA": "true",
     "LOG_LEVEL": "warn"
   },
   "rewrites": [

@@ -1,6 +1,6 @@
 # Current Azure Deployment
 
-This environment was provisioned for the local portfolio project.
+This environment was provisioned for the AgentOps Platform production workflow.
 
 ## Active resource group
 

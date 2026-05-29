@@ -103,7 +103,6 @@ export default function App() {
   const [error, setError] = useState("");
   const [authNotice, setAuthNotice] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
-  const demoAvailable = api.hasDemoApiKey();
 
   async function refresh() {
     setLoading(true);
@@ -124,11 +123,7 @@ export default function App() {
 
       if (systemResponse.data.authRequired && !api.getApiKey()) {
         resetOperationalState();
-        setAuthNotice(
-          demoAvailable
-            ? "Entre no modo demo para testar sem receber uma chave manual."
-            : "Cole a chave de acesso no topo para ver dados operacionais e testar o fluxo."
-        );
+        setAuthNotice("Cole uma chave de acesso operacional para ver dados, cadastrar conhecimento e executar agentes.");
         return;
       }
 
@@ -201,48 +196,10 @@ export default function App() {
     void refresh();
   }
 
-  function enableDemoApiKey(refreshAfter: boolean) {
-    if (!api.activateDemoApiKey()) {
-      setError("Modo demo nao esta configurado neste ambiente.");
-      return false;
-    }
-
-    setApiKey(api.getDemoApiKey());
-    setStatusMessage("Modo demo ativo. Agora voce pode carregar o exemplo e testar o fluxo.");
-    if (refreshAfter) {
-      void refresh();
-    }
-    return true;
-  }
-
-  function activateDemoMode() {
-    return enableDemoApiKey(true);
-  }
-
-  async function seedDemo() {
-    if (system?.authRequired && !api.getApiKey() && !enableDemoApiKey(false)) {
-      return;
-    }
-
-    setLoading(true);
-    setError("");
-    setStatusMessage("");
-    try {
-      await api.seedDemo();
-      setStatusMessage("Exemplo carregado. Siga o passo a passo para ver documentos, tickets, agentes e auditoria.");
-      await refresh();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Nao foi possivel carregar o exemplo.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   const criticalTickets = useMemo(() => tickets.filter((ticket) => ticket.severity === "critical").length, [tickets]);
   const ticketApprovalCount = useMemo(() => tickets.filter((ticket) => ticket.status === "needs_approval").length, [tickets]);
   const hasOperationalData = metrics.documents + metrics.tickets + metrics.agentRuns + metrics.auditEvents > 0;
   const authRequiredWithoutKey = Boolean(system?.authRequired && !apiKey.trim());
-  const demoModeActive = Boolean(demoAvailable && apiKey.trim() === api.getDemoApiKey());
 
   return (
     <div className="app-shell">
@@ -316,16 +273,6 @@ export default function App() {
             <button className="icon-button" onClick={clearApiKey} type="button" title="Limpar chave de acesso" aria-label="Limpar chave de acesso">
               <XCircle size={18} />
             </button>
-            {demoAvailable && !apiKey.trim() ? (
-              <button className="secondary-button compact-action" onClick={activateDemoMode} type="button">
-                <Play size={16} />
-                Modo demo
-              </button>
-            ) : null}
-            <button className="secondary-button" onClick={() => void seedDemo()} type="button" disabled={loading || (authRequiredWithoutKey && !demoAvailable)}>
-              <Database size={16} />
-              Carregar exemplo
-            </button>
             <button className="icon-button" onClick={() => void refresh()} type="button" title="Atualizar dados" aria-label="Atualizar dados">
               <RefreshCcw size={18} />
             </button>
@@ -345,17 +292,6 @@ export default function App() {
           <div className="notice warning" role="status">
             <KeyRound size={18} />
             <span>{authNotice}</span>
-            {demoAvailable ? (
-              <button type="button" onClick={activateDemoMode}>
-                Entrar no modo demo
-              </button>
-            ) : null}
-          </div>
-        ) : null}
-        {demoModeActive ? (
-          <div className="notice info" role="status">
-            <Play size={18} />
-            <span>Modo demo ativo: as acoes ficam limitadas para proteger a conta de IA em producao.</span>
           </div>
         ) : null}
         {statusMessage ? (
@@ -376,10 +312,8 @@ export default function App() {
             system={system}
             hasOperationalData={hasOperationalData}
             authRequiredWithoutKey={authRequiredWithoutKey}
-            demoAvailable={demoAvailable}
             loading={loading}
             onNavigate={setActiveView}
-            onSeedDemo={seedDemo}
           />
         ) : null}
         {activeView === "knowledge" ? <KnowledgeBase documents={documents} onChanged={refresh} /> : null}
@@ -412,10 +346,8 @@ function CommandCenter({
   system,
   hasOperationalData,
   authRequiredWithoutKey,
-  demoAvailable,
   loading,
-  onNavigate,
-  onSeedDemo
+  onNavigate
 }: {
   metrics: PlatformMetrics;
   criticalTickets: number;
@@ -437,12 +369,10 @@ function CommandCenter({
   system: SystemStatus | null;
   hasOperationalData: boolean;
   authRequiredWithoutKey: boolean;
-  demoAvailable: boolean;
   loading: boolean;
   onNavigate: (view: View) => void;
-  onSeedDemo: () => Promise<void>;
 }) {
-  const nextStep = getCommandNextStep(metrics, authRequiredWithoutKey, demoAvailable);
+  const nextStep = getCommandNextStep(metrics, authRequiredWithoutKey);
   const guideSteps = [
     {
       number: "1",
@@ -487,11 +417,6 @@ function CommandCenter({
   ];
 
   function runNextStep() {
-    if (nextStep.target === "seed") {
-      void onSeedDemo();
-      return;
-    }
-
     onNavigate(nextStep.target);
   }
 
@@ -500,34 +425,34 @@ function CommandCenter({
       <div className="intro-panel">
         <div className="intro-copy">
           <span className="eyebrow">O que este app faz</span>
-          <h2>Um painel para testar agentes de IA com documentos, tickets, revisao humana e auditoria.</h2>
+          <h2>Um painel de producao para operar agentes de IA com documentos, tickets, revisao humana e auditoria.</h2>
           <p>
-            Pense nele como uma central de atendimento corporativa: voce coloca conhecimento da empresa, abre um pedido,
-            pergunta para um agente e confere se a resposta tem contexto e seguranca antes de liberar.
+            Cadastre conhecimento da empresa, abra pedidos reais, pergunte aos agentes e revise respostas sensiveis antes
+            de liberar qualquer acao operacional.
           </p>
           <div className="intro-actions">
             <button
               className="primary-button"
               type="button"
-              disabled={loading || (authRequiredWithoutKey && !demoAvailable)}
-              onClick={() => void onSeedDemo()}
+              disabled={loading || authRequiredWithoutKey}
+              onClick={() => onNavigate("knowledge")}
             >
               <Database size={18} />
-              Carregar exemplo
+              Adicionar documento
             </button>
-            <button className="secondary-button" type="button" onClick={() => onNavigate("knowledge")}>
-              <FileText size={18} />
-              Comecar pela base
+            <button className="secondary-button" type="button" disabled={loading || authRequiredWithoutKey} onClick={() => onNavigate("tickets")}>
+              <ClipboardList size={18} />
+              Criar ticket
             </button>
           </div>
         </div>
 
         <div className="intro-proof" aria-label="Resumo do fluxo">
-          <strong>Teste em 3 minutos</strong>
-          <span>1. Clique em carregar exemplo para criar dados realistas.</span>
-          <span>2. Abra Agentes e gere uma resposta.</span>
-          <span>3. Veja os trechos usados, etapas tecnicas e alertas.</span>
-          <span>4. Confira revisao humana e auditoria.</span>
+          <strong>Fluxo de producao</strong>
+          <span>1. Cadastre documentos aprovados pela empresa.</span>
+          <span>2. Registre tickets com cliente, impacto e sintomas.</span>
+          <span>3. Execute agentes com contexto recuperado do pgvector.</span>
+          <span>4. Revise riscos e acompanhe auditoria.</span>
         </div>
       </div>
 
@@ -537,7 +462,7 @@ function CommandCenter({
           <strong>{nextStep.title}</strong>
           <p>{nextStep.text}</p>
         </div>
-        <button className="primary-button" type="button" disabled={loading || (authRequiredWithoutKey && !demoAvailable)} onClick={runNextStep}>
+        <button className="primary-button" type="button" disabled={loading || authRequiredWithoutKey} onClick={runNextStep}>
           <Play size={18} />
           {nextStep.action}
         </button>
@@ -591,11 +516,11 @@ function CommandCenter({
             ))}
             {runs.length === 0 ? (
               <EmptyState
-                title={hasOperationalData ? "Nenhum agente executado" : "Comece carregando o exemplo"}
+                title={hasOperationalData ? "Nenhum agente executado" : "Nenhuma execucao registrada"}
                 text={
                   hasOperationalData
                     ? "Abra o console de agentes para gerar uma resposta com contexto, avaliacao e auditoria."
-                    : "O exemplo cria documentos, tickets e eventos para voce entender o fluxo sem preencher tudo manualmente."
+                    : "Cadastre conhecimento e crie um ticket para iniciar o fluxo operacional."
                 }
               />
             ) : null}
@@ -621,7 +546,7 @@ function CommandCenter({
             <span>
               {system?.llmProvider === "google"
                 ? "Google Gemini esta ativo por padrao no backend. A chave do Google AI Studio fica protegida no ambiente da Vercel, nunca no navegador."
-                : "Sem chave Google ativa, o app usa IA simulada para permitir testes sem expor segredos."}
+                : "O backend esta sem provedor de IA real. Configure a chave do Google AI Studio antes de operar em producao."}
             </span>
           </div>
           <div className="runtime-list">
@@ -680,30 +605,28 @@ function GuideStep({
   );
 }
 
-function getCommandNextStep(metrics: PlatformMetrics, authRequiredWithoutKey: boolean, demoAvailable: boolean) {
+function getCommandNextStep(metrics: PlatformMetrics, authRequiredWithoutKey: boolean) {
   if (authRequiredWithoutKey) {
     return {
-      title: demoAvailable ? "Entrar no modo demo e carregar dados" : "Cole uma chave de acesso",
-      text: demoAvailable
-        ? "O modo demo libera um ambiente seguro para testar sem pedir uma chave manual."
-        : "A API esta protegida. Use uma chave valida para ver dados operacionais.",
-      action: demoAvailable ? "Comecar demo" : "Ver base",
-      target: demoAvailable ? ("seed" as const) : ("knowledge" as const)
+      title: "Informe a chave de acesso",
+      text: "A API de producao exige uma chave operacional. Use uma chave de operador, revisor ou administrador.",
+      action: "Usar chave",
+      target: "knowledge" as const
     };
   }
 
   if (metrics.documents === 0) {
     return {
-      title: "Carregue o exemplo ou adicione um documento",
-      text: "Sem documentos, o agente ainda responde, mas nao consegue provar que usou conhecimento da empresa.",
-      action: "Carregar exemplo",
-      target: "seed" as const
+      title: "Cadastre o primeiro documento",
+      text: "Os agentes precisam de politicas, runbooks ou procedimentos reais para responder com base no contexto da empresa.",
+      action: "Adicionar documento",
+      target: "knowledge" as const
     };
   }
 
   if (metrics.tickets === 0) {
     return {
-      title: "Crie um ticket para simular um pedido real",
+      title: "Crie um ticket operacional",
       text: "Use uma frase simples sobre um problema do cliente. A plataforma faz a triagem automaticamente.",
       action: "Criar ticket",
       target: "tickets" as const

@@ -43,7 +43,7 @@
     "stitch:proxy": "stitch-mcp proxy"
   },
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=22.13.0"
   },
   "devDependencies": {
     "@_davideast/stitch-mcp": "^0.9.0",

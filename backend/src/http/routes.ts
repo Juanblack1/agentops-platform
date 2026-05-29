@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { listAgents } from "../agents/catalog";
 import type { AppConfig } from "../config/env";
+import { DocumentExtractionError, extractDocumentText, supportedUploadDescription } from "../documents/extractDocumentText";
 import type { AgentId } from "../domain/types";
 import { governancePolicies } from "../governance/policies";
 import { getMastraRuntimeSummary } from "../mastra";
@@ -193,30 +194,34 @@ export async function registerRoutes(app: FastifyInstance, services: RouteServic
     if (!upload) {
       return reply.code(400).send({
         error: "missing_file",
-        message: "Upload a text or markdown file using multipart field name 'file'."
-      });
-    }
-
-    if (!isSupportedTextUpload(upload.filename, upload.mimetype)) {
-      return reply.code(415).send({
-        error: "unsupported_media_type",
-        message: "Only .txt, .md or markdown text uploads are supported."
+        message: "Envie um arquivo usando o campo multipart 'file'."
       });
     }
 
     const buffer = await upload.toBuffer();
-    const content = buffer.toString("utf8").trim();
+    let extracted: Awaited<ReturnType<typeof extractDocumentText>>;
 
-    if (content.length < 20 || content.includes("\u0000")) {
-      return reply.code(400).send({
-        error: "unsupported_document",
-        message: "Only text-like UTF-8 documents are supported in this endpoint."
+    try {
+      extracted = await extractDocumentText({
+        filename: upload.filename,
+        mimetype: upload.mimetype,
+        buffer
       });
+    } catch (cause) {
+      if (cause instanceof DocumentExtractionError) {
+        return reply.code(cause.statusCode).send({
+          error: cause.error,
+          message: cause.message,
+          supportedFormats: supportedUploadDescription
+        });
+      }
+
+      throw cause;
     }
 
     const document = await services.rag.ingest({
       title: query.title ?? upload.filename,
-      content,
+      content: extracted.content,
       classification: query.classification,
       rawStorage: await services.documentStorage.store({
         filename: upload.filename,
@@ -238,7 +243,9 @@ export async function registerRoutes(app: FastifyInstance, services: RouteServic
         filename: upload.filename,
         storage: document.rawStorage,
         chunks: document.chunks.length,
-        classification: document.classification
+        classification: document.classification,
+        format: extracted.format,
+        mimetype: upload.mimetype
       }
     });
 
@@ -341,19 +348,6 @@ export async function registerRoutes(app: FastifyInstance, services: RouteServic
       data: services.store.metrics()
     };
   });
-}
-
-function isSupportedTextUpload(filename: string, mimetype: string) {
-  const normalizedName = filename.toLowerCase();
-  const hasTextExtension =
-    normalizedName.endsWith(".txt") || normalizedName.endsWith(".md") || normalizedName.endsWith(".markdown");
-  const normalizedMime = mimetype.toLowerCase();
-  const hasTextMime =
-    normalizedMime.startsWith("text/") ||
-    normalizedMime === "application/markdown" ||
-    normalizedMime === "application/octet-stream";
-
-  return hasTextExtension && hasTextMime;
 }
 
 function requireRole(

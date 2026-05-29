@@ -32,7 +32,7 @@ const EnvSchema = z.object({
   OUTBOX_PUBLISHER: z.enum(["local", "servicebus"]).default("local"),
   AZURE_SERVICE_BUS_CONNECTION_STRING: z.string().optional().default(""),
   AZURE_SERVICE_BUS_TOPIC: z.string().optional().default("agentops-events"),
-  UPLOAD_MAX_BYTES: z.coerce.number().int().positive().default(1_000_000),
+  UPLOAD_MAX_BYTES: z.coerce.number().int().positive().default(8_000_000),
   DOCUMENT_STORAGE: z.enum(["local", "azure-blob"]).default("local"),
   DOCUMENT_STORAGE_DIR: z.string().default("../data/uploads"),
   AZURE_STORAGE_CONNECTION_STRING: z.string().optional().default(""),

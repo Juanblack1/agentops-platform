@@ -181,10 +181,12 @@ Invoke-RestMethod -Uri http://localhost:3333/api/outbox/dispatch -Method Post -C
 
 ## Como fazer upload de documentos
 
-A UI aceita `.txt` e `.md` na aba RAG. Via API:
+A aba RAG aceita PDF, DOCX, XLSX, TXT, Markdown, CSV/TSV, JSON/JSONL, YAML/YML, XML, HTML, LOG, CONF, INI e SQL. O limite padrao e `UPLOAD_MAX_BYTES=8000000`.
+
+Via API:
 
 ```powershell
-curl -X POST "http://localhost:3333/api/documents/upload?classification=internal&tags=runbook,ti" -F "file=@runbook.md"
+curl -X POST "http://localhost:3333/api/documents/upload?classification=internal&tags=runbook,ti" -F "file=@runbook.pdf"
 ```
 
 Por padrao os arquivos brutos ficam em `data/uploads`. Para usar Azure Blob:

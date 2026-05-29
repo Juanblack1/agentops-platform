@@ -732,12 +732,12 @@ function KnowledgeBase({ documents, onChanged }: { documents: DocumentRecord[]; 
         </button>
         <div className="form-divider" />
         <label>
-          Arquivo .txt/.md
-          <span className="field-help">Use upload quando ja tiver um runbook ou politica em arquivo.</span>
+          Arquivo pronto
+          <span className="field-help">Envie PDF, Word, Excel, Markdown, CSV ou texto quando ja tiver uma politica, planilha ou runbook.</span>
           <input
             name="document-file"
             type="file"
-            accept=".txt,.md,text/plain,text/markdown"
+            accept=".pdf,.docx,.xlsx,.txt,.md,.markdown,.csv,.tsv,.json,.jsonl,.yaml,.yml,.xml,.html,.htm,.log,.conf,.ini,.sql,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain,text/markdown,application/markdown,text/csv,text/tab-separated-values,application/json,application/x-ndjson,application/yaml,application/x-yaml,text/html,application/xml,text/xml"
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
           />
         </label>

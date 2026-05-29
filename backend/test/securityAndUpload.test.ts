@@ -6,7 +6,7 @@ import { loadConfig } from "../src/config/env";
 import { buildServer } from "../src/server";
 
 // Suite: Security and document upload API
-// Invariant: configured API keys enforce roles, and text uploads are ingested as RAG documents.
+// Invariant: configured API keys enforce roles, and supported uploads are ingested as RAG documents.
 // Boundary IN: Fastify auth hook, route role checks and multipart upload route.
 // Boundary OUT: external identity providers and binary document parsers.
 describe("security and upload API", () => {
@@ -274,4 +274,75 @@ describe("security and upload API", () => {
 
     await app.close();
   });
+
+  it("extracts PDF uploads before ingesting them as documents", async () => {
+    const app = await buildServer(
+      loadConfig({
+        NODE_ENV: "test",
+        DATA_STORE: "memory",
+        DOCUMENT_STORAGE_DIR: mkdtempSync(join(tmpdir(), "agentops-upload-")),
+        SEED_DEMO_DATA: "false"
+      } as NodeJS.ProcessEnv)
+    );
+
+    const boundary = "----agentops-pdf-boundary";
+    const pdfText = "Runbook PDF para RAG. Este documento valida ingestao de PDF com texto extraido corretamente.";
+    const payload = Buffer.concat([
+      Buffer.from(
+        [
+          `--${boundary}`,
+          'Content-Disposition: form-data; name="file"; filename="runbook.pdf"',
+          "Content-Type: application/pdf",
+          "",
+          ""
+        ].join("\r\n")
+      ),
+      createSimplePdf(pdfText),
+      Buffer.from(`\r\n--${boundary}--\r\n`)
+    ]);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/documents/upload?classification=internal&tags=pdf,teste",
+      headers: {
+        "content-type": `multipart/form-data; boundary=${boundary}`
+      },
+      payload
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json().data.title).toBe("runbook.pdf");
+    expect(response.json().data.content).toContain("Runbook PDF para RAG");
+    expect(response.json().data.chunks.length).toBeGreaterThan(0);
+
+    await app.close();
+  });
 });
+
+function createSimplePdf(text: string) {
+  const escapedText = text.replace(/([\\()])/g, "\\$1");
+  const stream = `BT\n/F1 12 Tf\n72 720 Td\n(${escapedText}) Tj\nET`;
+  const objects = [
+    "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",
+    "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n",
+    "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>\nendobj\n",
+    "4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n",
+    `5 0 obj\n<< /Length ${Buffer.byteLength(stream, "latin1")} >>\nstream\n${stream}\nendstream\nendobj\n`
+  ];
+
+  let pdf = "%PDF-1.4\n";
+  const offsets = objects.map((object) => {
+    const offset = Buffer.byteLength(pdf, "latin1");
+    pdf += object;
+    return offset;
+  });
+  const xrefOffset = Buffer.byteLength(pdf, "latin1");
+
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (const offset of offsets) {
+    pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
+  }
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`;
+
+  return Buffer.from(pdf, "latin1");
+}

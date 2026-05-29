@@ -130,18 +130,25 @@ function isExtensionOptionalForMime(format: UploadedDocumentFormat, extension: s
 }
 
 async function extractPdfText(buffer: Buffer) {
-  await ensurePdfTextExtractionGlobals();
+  const pdfRuntime = await ensurePdfTextExtractionGlobals();
   const { PDFParse } = await import("pdf-parse");
   const parser = new PDFParse({
     data: new Uint8Array(buffer),
     isEvalSupported: false,
-    stopAtErrors: true
+    stopAtErrors: false
   });
 
   try {
     const result = await parser.getText();
     return result.text;
-  } catch {
+  } catch (cause) {
+    console.warn(
+      {
+        error: cause instanceof Error ? cause.message : String(cause),
+        runtime: pdfRuntime
+      },
+      "pdf text extraction failed"
+    );
     throw new DocumentExtractionError(400, "unsupported_document", "Nao foi possivel ler texto deste PDF.");
   } finally {
     await parser.destroy();
@@ -152,7 +159,7 @@ async function ensurePdfTextExtractionGlobals() {
   const globals = globalThis as Record<string, unknown>;
 
   if (globals.DOMMatrix) {
-    return;
+    return "existing";
   }
 
   try {
@@ -160,7 +167,7 @@ async function ensurePdfTextExtractionGlobals() {
     globals.DOMMatrix = canvas.DOMMatrix;
     globals.ImageData = canvas.ImageData;
     globals.Path2D = canvas.Path2D;
-    return;
+    return "native-canvas";
   } catch {
     // Text extraction does not render pages, but pdfjs needs these globals during module initialization.
   }
@@ -168,6 +175,7 @@ async function ensurePdfTextExtractionGlobals() {
   globals.DOMMatrix = LightweightDOMMatrix;
   globals.ImageData = LightweightImageData;
   globals.Path2D = LightweightPath2D;
+  return "lightweight-polyfill";
 }
 
 class LightweightDOMMatrix {

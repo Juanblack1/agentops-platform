@@ -1372,36 +1372,6 @@ textarea:hover {
   font-size: 13px;
 }
 
-.azure-map {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-3);
-}
-
-.azure-node {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  min-height: 74px;
-  padding: var(--space-4);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-}
-
-.azure-node span {
-  display: inline-grid;
-  place-items: center;
-  flex: 0 0 36px;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-md);
-  background: var(--green-strong);
-  color: var(--green-ink);
-  font-size: 12px;
-  font-weight: 800;
-}
-
 .empty-state {
   min-height: 112px;
   display: grid;
@@ -1464,7 +1434,6 @@ textarea:hover {
 
   .split-layout,
   .agents-layout,
-  .azure-map,
   .score-strip,
   .intro-panel {
     grid-template-columns: 1fr;

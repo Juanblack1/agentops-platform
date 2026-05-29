@@ -5,7 +5,6 @@ import {
   Boxes,
   CheckCircle2,
   ClipboardList,
-  Cloud,
   Cpu,
   Database,
   FileUp,
@@ -38,7 +37,7 @@ import type {
   Ticket
 } from "./types";
 
-type View = "command" | "knowledge" | "tickets" | "agents" | "approvals" | "audit" | "azure";
+type View = "command" | "knowledge" | "tickets" | "agents" | "approvals" | "audit";
 
 const emptyMetrics: PlatformMetrics = {
   documents: 0,
@@ -68,8 +67,7 @@ const views: Array<{ id: View; label: string; icon: typeof Activity }> = [
   { id: "tickets", label: "Tickets", icon: ClipboardList },
   { id: "agents", label: "Agentes", icon: Bot },
   { id: "approvals", label: "Revisao humana", icon: ShieldCheck },
-  { id: "audit", label: "Auditoria", icon: ShieldCheck },
-  { id: "azure", label: "Arquitetura", icon: Cloud }
+  { id: "audit", label: "Auditoria", icon: ShieldCheck }
 ];
 
 export default function App() {
@@ -331,7 +329,6 @@ export default function App() {
             onChanged={refresh}
           />
         ) : null}
-        {activeView === "azure" ? <AzurePanel mastra={mastra} metrics={metrics} /> : null}
       </main>
     </div>
   );
@@ -1290,65 +1287,6 @@ function AuditPanel({
   );
 }
 
-function AzurePanel({
-  mastra,
-  metrics
-}: {
-  mastra: {
-    registeredAgents: string[];
-    registeredTools: string[];
-    registeredWorkflows: string[];
-    model: string;
-    mode: string;
-    studio: {
-      apiCommand: string;
-      studioCommand: string;
-      apiUrl: string;
-      studioUrl: string;
-    };
-  } | null;
-  metrics: PlatformMetrics;
-}) {
-  const steps = [
-    "Frontend publico na Vercel",
-    "API Node.js recebe tickets, documentos e execucoes",
-    "Agentes consultam documentos antes de responder",
-    "Revisao humana segura respostas sensiveis",
-    "Auditoria registra traces, avaliacoes e eventos",
-    "Mastra Studio permite inspecionar agentes e tools",
-    "Azure pode assumir banco, arquivos, filas e containers"
-  ];
-
-  return (
-    <section className="view-grid">
-      <div className="panel wide">
-        <div className="panel-heading">
-          <div>
-            <span className="eyebrow">Arquitetura</span>
-            <h2>Como isso vai para producao</h2>
-          </div>
-          <Cloud size={20} />
-        </div>
-        <div className="azure-map">
-          {steps.map((step, index) => (
-            <div className="azure-node" key={step}>
-              <span>{String(index + 1).padStart(2, "0")}</span>
-              <strong>{step}</strong>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="metric-grid">
-        <Metric icon={Bot} label="Agentes" value={mastra?.registeredAgents.length ?? 0} tone="blue" />
-        <Metric icon={Workflow} label="Tools" value={mastra?.registeredTools.length ?? 0} tone="green" />
-        <Metric icon={ShieldCheck} label="Traces" value={metrics.tracedRuns} tone="orange" />
-        <Metric icon={Database} label="Tokens" value={metrics.totalTokens} tone="red" />
-      </div>
-    </section>
-  );
-}
-
 function Metric({
   icon: Icon,
   label,
@@ -1411,8 +1349,7 @@ function titleFor(view: View) {
     tickets: "Triagem de tickets",
     agents: "Console de agentes",
     approvals: "Revisao humana",
-    audit: "Auditoria e governanca",
-    azure: "Arquitetura e deploy"
+    audit: "Auditoria e governanca"
   };
   return titles[view];
 }
@@ -1424,8 +1361,7 @@ function summaryFor(view: View) {
     tickets: "Abra um pedido ou incidente para ver classificacao de severidade, responsavel e status.",
     agents: "Escolha um agente, envie uma pergunta e veja a resposta com contexto, tempo, qualidade e seguranca.",
     approvals: "Revise respostas que envolvem dados sensiveis, credenciais ou contexto restrito antes de liberar.",
-    audit: "Acompanhe politicas, avaliacoes e eventos que provam o que aconteceu em cada execucao.",
-    azure: "Veja como o exemplo se conecta a Vercel, Mastra, Docker, Qdrant, PostgreSQL e Azure em producao."
+    audit: "Acompanhe politicas, avaliacoes e eventos que provam o que aconteceu em cada execucao."
   };
   return summaries[view];
 }

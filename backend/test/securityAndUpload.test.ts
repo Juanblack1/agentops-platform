@@ -61,11 +61,30 @@ describe("security and upload API", () => {
     });
     expect(mastra.statusCode).toBe(200);
 
+    const agentsWithStaleKey = await app.inject({
+      method: "GET",
+      url: "/api/agents",
+      headers: {
+        "x-api-key": "stale-browser-key"
+      }
+    });
+    expect(agentsWithStaleKey.statusCode).toBe(200);
+    expect(agentsWithStaleKey.json().data.length).toBeGreaterThan(0);
+
     const metrics = await app.inject({
       method: "GET",
       url: "/api/metrics"
     });
     expect(metrics.statusCode).toBe(401);
+
+    const metricsWithStaleKey = await app.inject({
+      method: "GET",
+      url: "/api/metrics",
+      headers: {
+        "x-api-key": "stale-browser-key"
+      }
+    });
+    expect(metricsWithStaleKey.statusCode).toBe(401);
 
     const documents = await app.inject({
       method: "GET",

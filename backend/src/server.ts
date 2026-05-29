@@ -182,10 +182,7 @@ export async function buildServer(config: AppConfig = loadConfig()) {
     const principal = resolveApiPrincipal(config, apiKey);
 
     if (!principal) {
-      return reply.code(401).send({
-        error: "unauthorized",
-        message: "Missing or invalid x-api-key header."
-      });
+      return;
     }
 
     request.headers["x-agentops-role"] = principal.role;

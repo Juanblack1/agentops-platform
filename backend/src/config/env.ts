@@ -50,5 +50,20 @@ const EnvSchema = z.object({
 export type AppConfig = z.infer<typeof EnvSchema>;
 
 export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
-  return EnvSchema.parse(source);
+  const config = EnvSchema.parse(source);
+  const runningOnVercel = Boolean(source.VERCEL);
+
+  if (!runningOnVercel) {
+    return config;
+  }
+
+  return {
+    ...config,
+    DATA_FILE_PATH:
+      config.DATA_STORE === "file" && !source.DATA_FILE_PATH ? "/tmp/agentops-store.json" : config.DATA_FILE_PATH,
+    DOCUMENT_STORAGE_DIR:
+      config.DOCUMENT_STORAGE === "local" && !source.DOCUMENT_STORAGE_DIR
+        ? "/tmp/agentops-uploads"
+        : config.DOCUMENT_STORAGE_DIR
+  };
 }

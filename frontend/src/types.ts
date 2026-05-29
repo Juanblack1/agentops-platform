@@ -45,6 +45,7 @@ export interface AgentRun {
   agentId: AgentId;
   prompt: string;
   answer: string;
+  reasoningSummary: string[];
   model: string;
   provider: "mock" | "litellm" | "google";
   tokenUsage?: {
@@ -59,6 +60,8 @@ export interface AgentRun {
     tools: string[];
     spans: Array<{
       name: string;
+      startedAt?: string;
+      endedAt?: string;
       durationMs: number;
       attributes: Record<string, string | number | boolean>;
     }>;

@@ -72,6 +72,9 @@ describe("agent workflow API", () => {
     expect(run.traceId).toBeTruthy();
     expect(run.trace.spans.map((traceSpan: { name: string }) => traceSpan.name)).toContain("rag.retrieve");
     expect(run.provider).toBe("mock");
+    expect(run.reasoningSummary).toEqual(
+      expect.arrayContaining([expect.stringContaining("Busquei"), expect.stringContaining("Registrei trace")])
+    );
 
     const metricsResponse = await app.inject({
       method: "GET",

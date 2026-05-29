@@ -293,7 +293,7 @@ export class InMemoryStore {
 }
 
 function normalizeAgentRun(run: AgentRun): AgentRun {
-  if (run.traceId && run.provider && run.trace) {
+  if (run.traceId && run.provider && run.trace && run.reasoningSummary) {
     return run;
   }
 
@@ -304,6 +304,7 @@ function normalizeAgentRun(run: AgentRun): AgentRun {
     ...run,
     traceId,
     provider,
+    reasoningSummary: run.reasoningSummary ?? legacyReasoningSummary(run),
     trace: run.trace ?? {
       traceId,
       provider,
@@ -313,4 +314,12 @@ function normalizeAgentRun(run: AgentRun): AgentRun {
       spans: []
     }
   };
+}
+
+function legacyReasoningSummary(run: AgentRun) {
+  return [
+    `Execucao antiga normalizada para exibicao. Trace ${run.traceId ?? run.id}.`,
+    `Provider registrado: ${run.provider ?? "mock"}.`,
+    "Abra a resposta e os eventos de auditoria para ver o contexto disponivel."
+  ];
 }

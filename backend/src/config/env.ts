@@ -1,6 +1,8 @@
 import "dotenv/config";
 import { z } from "zod";
 
+const emptyStringToUndefined = (value: unknown) => (value === "" ? undefined : value);
+
 const EnvSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(3333),
@@ -18,7 +20,7 @@ const EnvSchema = z.object({
   DEMO_API_KEY: z.string().optional().default(""),
   DEMO_RATE_LIMIT_MAX: z.coerce.number().int().nonnegative().default(30),
   DEMO_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(600_000),
-  LLM_PROVIDER: z.enum(["mock", "litellm", "google"]).default("mock"),
+  LLM_PROVIDER: z.preprocess(emptyStringToUndefined, z.enum(["mock", "litellm", "google"]).default("mock")),
   LITELLM_BASE_URL: z.string().url().default("http://localhost:4000"),
   LITELLM_API_KEY: z.string().optional().default(""),
   LITELLM_MODEL: z.string().default("azure-gpt-4o-mini"),
@@ -50,7 +52,7 @@ const EnvSchema = z.object({
 export type AppConfig = z.infer<typeof EnvSchema>;
 
 export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
-  const config = EnvSchema.parse(source);
+  const config = applyProviderDefaults(EnvSchema.parse(source), source);
   const runningOnVercel = Boolean(source.VERCEL);
 
   if (!runningOnVercel) {
@@ -66,4 +68,17 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
         ? "/tmp/agentops-uploads"
         : config.DOCUMENT_STORAGE_DIR
   };
+}
+
+function applyProviderDefaults(config: AppConfig, source: NodeJS.ProcessEnv): AppConfig {
+  const explicitProvider = typeof source.LLM_PROVIDER === "string" && source.LLM_PROVIDER.trim().length > 0;
+
+  if (!explicitProvider && config.GOOGLE_GENERATIVE_AI_API_KEY) {
+    return {
+      ...config,
+      LLM_PROVIDER: "google"
+    };
+  }
+
+  return config;
 }

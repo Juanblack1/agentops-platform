@@ -442,15 +442,68 @@ function CommandCenter({
   onNavigate: (view: View) => void;
   onSeedDemo: () => Promise<void>;
 }) {
+  const nextStep = getCommandNextStep(metrics, authRequiredWithoutKey, demoAvailable);
+  const guideSteps = [
+    {
+      number: "1",
+      icon: Database,
+      title: "Carregue conhecimento",
+      text: "Adicione PDFs, planilhas, documentos ou textos que os agentes podem consultar antes de responder.",
+      action: "Abrir base",
+      done: metrics.documents > 0,
+      status: metrics.documents > 0 ? `${metrics.documents} documento(s)` : "Pendente",
+      onClick: () => onNavigate("knowledge")
+    },
+    {
+      number: "2",
+      icon: ClipboardList,
+      title: "Crie um ticket",
+      text: "Descreva o problema em linguagem simples. A plataforma classifica severidade e sugere o agente.",
+      action: "Criar ticket",
+      done: metrics.tickets > 0,
+      status: metrics.tickets > 0 ? `${metrics.tickets} ticket(s)` : "Pendente",
+      onClick: () => onNavigate("tickets")
+    },
+    {
+      number: "3",
+      icon: Bot,
+      title: "Execute um agente",
+      text: "Escolha o agente, envie a pergunta e veja resposta, contexto usado, etapas tecnicas e qualidade.",
+      action: "Usar agente",
+      done: metrics.agentRuns > 0,
+      status: metrics.agentRuns > 0 ? `${metrics.agentRuns} execucao(oes)` : "Pendente",
+      onClick: () => onNavigate("agents")
+    },
+    {
+      number: "4",
+      icon: ShieldCheck,
+      title: "Revise e audite",
+      text: "Aprove respostas sensiveis e confira a trilha de auditoria para entender o que aconteceu.",
+      action: "Ver auditoria",
+      done: metrics.evaluations > 0 || metrics.auditEvents > 0,
+      status: metrics.pendingApprovals > 0 ? `${metrics.pendingApprovals} pendente(s)` : metrics.auditEvents > 0 ? "Auditado" : "Pendente",
+      onClick: () => onNavigate(metrics.pendingApprovals > 0 ? "approvals" : "audit")
+    }
+  ];
+
+  function runNextStep() {
+    if (nextStep.target === "seed") {
+      void onSeedDemo();
+      return;
+    }
+
+    onNavigate(nextStep.target);
+  }
+
   return (
     <section className="view-grid">
       <div className="intro-panel">
         <div className="intro-copy">
           <span className="eyebrow">O que este app faz</span>
-          <h2>Controle agentes de IA antes que eles respondam por uma empresa.</h2>
+          <h2>Um painel para testar agentes de IA com documentos, tickets, revisao humana e auditoria.</h2>
           <p>
-            O fluxo e simples: voce cadastra documentos internos, abre um ticket, pede ajuda a um agente e revisa respostas
-            sensiveis antes de liberar. A plataforma registra contexto, decisao, avaliacao e auditoria para cada etapa.
+            Pense nele como uma central de atendimento corporativa: voce coloca conhecimento da empresa, abre um pedido,
+            pergunta para um agente e confere se a resposta tem contexto e seguranca antes de liberar.
           </p>
           <div className="intro-actions">
             <button
@@ -470,47 +523,30 @@ function CommandCenter({
         </div>
 
         <div className="intro-proof" aria-label="Resumo do fluxo">
-          <strong>Fluxo principal</strong>
-          <span>Documentos internos viram contexto para agentes.</span>
-          <span>Tickets sao triados por severidade e agente responsavel.</span>
-          <span>Respostas de risco entram em revisao humana.</span>
-          <span>Auditoria mostra quem fez, quando fez e por qual motivo.</span>
+          <strong>Teste em 3 minutos</strong>
+          <span>1. Clique em carregar exemplo para criar dados realistas.</span>
+          <span>2. Abra Agentes e gere uma resposta.</span>
+          <span>3. Veja os trechos usados, etapas tecnicas e alertas.</span>
+          <span>4. Confira revisao humana e auditoria.</span>
         </div>
       </div>
 
+      <div className="next-step-panel">
+        <div>
+          <span className="eyebrow">Proximo passo</span>
+          <strong>{nextStep.title}</strong>
+          <p>{nextStep.text}</p>
+        </div>
+        <button className="primary-button" type="button" disabled={loading || (authRequiredWithoutKey && !demoAvailable)} onClick={runNextStep}>
+          <Play size={18} />
+          {nextStep.action}
+        </button>
+      </div>
+
       <div className="guide-grid" aria-label="Passo a passo recomendado">
-        <GuideStep
-          number="1"
-          icon={Database}
-          title="Carregue conhecimento"
-          text="Adicione politicas, runbooks e orientacoes que os agentes podem consultar."
-          action="Abrir base"
-          onClick={() => onNavigate("knowledge")}
-        />
-        <GuideStep
-          number="2"
-          icon={ClipboardList}
-          title="Crie um ticket"
-          text="Descreva um pedido ou incidente como uma equipe de suporte faria."
-          action="Criar ticket"
-          onClick={() => onNavigate("tickets")}
-        />
-        <GuideStep
-          number="3"
-          icon={Bot}
-          title="Execute um agente"
-          text="Escolha o agente certo e veja resposta, contexto usado, tempo e qualidade."
-          action="Usar agente"
-          onClick={() => onNavigate("agents")}
-        />
-        <GuideStep
-          number="4"
-          icon={ShieldCheck}
-          title="Revise riscos"
-          text="Aprove ou rejeite respostas que mencionam segredo, dado sensivel ou contexto restrito."
-          action="Ver revisoes"
-          onClick={() => onNavigate("approvals")}
-        />
+        {guideSteps.map((step) => (
+          <GuideStep key={step.number} {...step} />
+        ))}
       </div>
 
       <div className="metric-grid">
@@ -580,6 +616,14 @@ function CommandCenter({
             <RuntimeItem label="Dados" value={dataStoreLabel(system?.dataStore)} />
             <RuntimeItem label="Busca de contexto" value={vectorStoreLabel(system?.vectorStore)} />
           </div>
+          <div className="provider-note">
+            <ShieldCheck size={18} />
+            <span>
+              {system?.llmProvider === "google"
+                ? "Google Gemini esta ativo por padrao no backend. A chave do Google AI Studio fica protegida no ambiente da Vercel, nunca no navegador."
+                : "Sem chave Google ativa, o app usa IA simulada para permitir testes sem expor segredos."}
+            </span>
+          </div>
           <div className="runtime-list">
             <span>{mastra?.registeredAgents.length ?? 0} agentes</span>
             <span>{mastra?.registeredTools.length ?? 0} tools</span>
@@ -609,6 +653,8 @@ function GuideStep({
   title,
   text,
   action,
+  done,
+  status,
   onClick
 }: {
   number: string;
@@ -616,19 +662,78 @@ function GuideStep({
   title: string;
   text: string;
   action: string;
+  done: boolean;
+  status: string;
   onClick: () => void;
 }) {
   return (
-    <article className="guide-card">
+    <article className={done ? "guide-card done" : "guide-card"}>
       <div className="guide-number">{number}</div>
       <Icon size={20} />
       <strong>{title}</strong>
       <p>{text}</p>
+      <span className={done ? "step-status done" : "step-status"}>{done ? "Concluido" : status}</span>
       <button className="secondary-button" type="button" onClick={onClick}>
         {action}
       </button>
     </article>
   );
+}
+
+function getCommandNextStep(metrics: PlatformMetrics, authRequiredWithoutKey: boolean, demoAvailable: boolean) {
+  if (authRequiredWithoutKey) {
+    return {
+      title: demoAvailable ? "Entrar no modo demo e carregar dados" : "Cole uma chave de acesso",
+      text: demoAvailable
+        ? "O modo demo libera um ambiente seguro para testar sem pedir uma chave manual."
+        : "A API esta protegida. Use uma chave valida para ver dados operacionais.",
+      action: demoAvailable ? "Comecar demo" : "Ver base",
+      target: demoAvailable ? ("seed" as const) : ("knowledge" as const)
+    };
+  }
+
+  if (metrics.documents === 0) {
+    return {
+      title: "Carregue o exemplo ou adicione um documento",
+      text: "Sem documentos, o agente ainda responde, mas nao consegue provar que usou conhecimento da empresa.",
+      action: "Carregar exemplo",
+      target: "seed" as const
+    };
+  }
+
+  if (metrics.tickets === 0) {
+    return {
+      title: "Crie um ticket para simular um pedido real",
+      text: "Use uma frase simples sobre um problema do cliente. A plataforma faz a triagem automaticamente.",
+      action: "Criar ticket",
+      target: "tickets" as const
+    };
+  }
+
+  if (metrics.agentRuns === 0) {
+    return {
+      title: "Pergunte a um agente",
+      text: "O console mostra a resposta, os documentos consultados, a avaliacao e o trace tecnico.",
+      action: "Usar agente",
+      target: "agents" as const
+    };
+  }
+
+  if (metrics.pendingApprovals > 0) {
+    return {
+      title: "Revise respostas sensiveis",
+      text: "Alguma resposta acionou politica de seguranca e precisa de decisao humana.",
+      action: "Abrir revisoes",
+      target: "approvals" as const
+    };
+  }
+
+  return {
+    title: "Confira a auditoria",
+    text: "Use a auditoria para provar qual agente rodou, qual contexto usou e quais controles foram aplicados.",
+    action: "Ver auditoria",
+    target: "audit" as const
+  };
 }
 
 function GlossaryItem({ term, text }: { term: string; text: string }) {
@@ -863,6 +968,7 @@ function AgentsPanel({
   const [agentId, setAgentId] = useState<AgentId>("supervisor");
   const [prompt, setPrompt] = useState("Como devo responder um incidente critico de indisponibilidade?");
   const [running, setRunning] = useState(false);
+  const [runError, setRunError] = useState("");
   const [latestRun, setLatestRun] = useState<AgentRun | null>(runs[0] ?? null);
   const latestEvaluation = latestRun ? evaluations.find((evaluation) => evaluation.runId === latestRun.id) : undefined;
 
@@ -875,10 +981,14 @@ function AgentsPanel({
   async function submit(event: FormEvent) {
     event.preventDefault();
     setRunning(true);
+    setRunError("");
     try {
       const response = await api.runAgent(agentId, prompt);
       setLatestRun(response.data);
+      setRunning(false);
       await onRun();
+    } catch (cause) {
+      setRunError(cause instanceof Error ? cause.message : "Nao foi possivel gerar a resposta do agente.");
     } finally {
       setRunning(false);
     }
@@ -925,8 +1035,18 @@ function AgentsPanel({
         </label>
         <button className="primary-button" type="submit" disabled={running}>
           <Play size={18} />
-          Gerar resposta
+          {running ? "Gerando..." : "Gerar resposta"}
         </button>
+
+        {runError ? (
+          <div className="provider-error" role="alert">
+            <AlertCircle size={18} />
+            <div>
+              <strong>Erro ao chamar a IA</strong>
+              <span>{runError}</span>
+            </div>
+          </div>
+        ) : null}
 
         {latestRun ? (
           <div className="answer-box">
@@ -939,33 +1059,111 @@ function AgentsPanel({
               {latestRun.tokenUsage?.totalTokens ? <span>{latestRun.tokenUsage.totalTokens} tokens</span> : null}
               {latestEvaluation ? <span>{latestEvaluation.overallScore}% qualidade</span> : null}
             </div>
+            <strong className="answer-heading">Resposta do agente</strong>
             <pre>{latestRun.answer}</pre>
-            <div className="trace-stack">
-              {latestRun.trace.spans.map((span) => (
-                <span key={`${latestRun.id}-${span.name}`}>
-                  {span.name} {span.durationMs} ms
-                </span>
-              ))}
-            </div>
-            {latestEvaluation ? (
-              <div className="score-strip">
-                <span>Busca {latestEvaluation.retrievalScore}%</span>
-                <span>Baseado no contexto {latestEvaluation.groundednessScore}%</span>
-                <span>Seguranca {latestEvaluation.safetyScore}%</span>
-              </div>
-            ) : null}
-            {latestRun.safetyFlags.length > 0 ? (
-              <div className="flag-list">
-                {latestRun.safetyFlags.map((flag) => (
-                  <span key={flag.code}>{flag.code}</span>
-                ))}
-              </div>
-            ) : null}
+            <RunExplainabilityPanel run={latestRun} evaluation={latestEvaluation} />
           </div>
         ) : null}
       </form>
     </section>
   );
+}
+
+function RunExplainabilityPanel({ run, evaluation }: { run: AgentRun; evaluation?: AgentEvaluation }) {
+  const summary = run.reasoningSummary?.length ? run.reasoningSummary : buildFallbackRunSummary(run);
+
+  return (
+    <div className="explainability-panel">
+      <div className="explainability-heading">
+        <div>
+          <span className="eyebrow">Como a IA chegou nisso</span>
+          <strong>Resumo verificavel da execucao</strong>
+        </div>
+        <span className="pill">sem pensamento privado</span>
+      </div>
+      <p className="explainability-note">
+        A tela mostra contexto usado, etapas tecnicas, avaliacao e erros seguros do provedor. Ela nao exibe cadeia de pensamento
+        interna do modelo.
+      </p>
+
+      <div className="reasoning-list">
+        {summary.map((item, index) => (
+          <div className="reasoning-item" key={`${run.id}-reason-${index}`}>
+            <span>{index + 1}</span>
+            <p>{item}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="trace-stack" aria-label="Etapas tecnicas executadas">
+        {run.trace.spans.map((span) => (
+          <span key={`${run.id}-${span.name}`}>
+            {traceLabel(span.name)} {span.durationMs} ms
+          </span>
+        ))}
+      </div>
+
+      {run.retrievedContext.length > 0 ? (
+        <div className="context-evidence">
+          {run.retrievedContext.slice(0, 3).map((context, index) => (
+            <article className="context-row" key={`${run.id}-${context.title}-${index}`}>
+              <div>
+                <strong>{context.title}</strong>
+                <span>
+                  {context.classification} - {Math.round(context.score * 100)}% similaridade
+                </span>
+              </div>
+              <p>{context.content.slice(0, 260)}</p>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <EmptyState title="Sem contexto recuperado" text="Cadastre documentos na base para que a resposta use evidencias internas." />
+      )}
+
+      {evaluation ? (
+        <div className="score-strip">
+          <span>Busca {evaluation.retrievalScore}%</span>
+          <span>Baseado no contexto {evaluation.groundednessScore}%</span>
+          <span>Seguranca {evaluation.safetyScore}%</span>
+        </div>
+      ) : null}
+
+      <div className="flag-list">
+        {run.safetyFlags.length > 0 ? (
+          run.safetyFlags.map((flag) => (
+            <span key={flag.code} title={flag.message}>
+              {flag.code}
+            </span>
+          ))
+        ) : (
+          <span>Nenhum alerta de seguranca</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function buildFallbackRunSummary(run: AgentRun) {
+  return [
+    run.retrievedContext.length > 0
+      ? `Foram consultados ${run.retrievedContext.length} trecho(s) da base de conhecimento.`
+      : "Nenhum trecho da base foi recuperado para esta pergunta.",
+    `A resposta foi gerada por ${llmProviderLabel(run.provider)} usando ${run.model}.`,
+    run.safetyFlags.length > 0
+      ? `A governanca encontrou ${run.safetyFlags.length} alerta(s) de seguranca.`
+      : "A governanca nao encontrou alerta de seguranca.",
+    "O trace registrou as etapas tecnicas, duracao e metadados da execucao."
+  ];
+}
+
+function traceLabel(name: string) {
+  const labels: Record<string, string> = {
+    "rag.retrieve": "Busca de contexto",
+    "llm.generate": "Chamada da IA",
+    "governance.evaluate": "Governanca"
+  };
+  return labels[name] ?? name;
 }
 
 function ApprovalsPanel({ approvals, onChanged }: { approvals: ApprovalRequest[]; onChanged: () => Promise<void> }) {

@@ -108,6 +108,7 @@ export interface AgentRun {
   agentId: AgentId;
   prompt: string;
   answer: string;
+  reasoningSummary: string[];
   model: string;
   provider: LlmProvider;
   tokenUsage?: TokenUsage;

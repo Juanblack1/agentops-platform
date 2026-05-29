@@ -20,6 +20,18 @@ export interface LlmGateway {
   generate(request: GenerateRequest): Promise<GenerateResponse>;
 }
 
+export class LlmProviderError extends Error {
+  readonly statusCode = 424;
+
+  constructor(
+    readonly provider: LlmProvider,
+    message: string
+  ) {
+    super(message);
+    this.name = "LlmProviderError";
+  }
+}
+
 export class MockLlmGateway implements LlmGateway {
   async generate(request: GenerateRequest): Promise<GenerateResponse> {
     const startedAt = performance.now();
@@ -60,31 +72,39 @@ export class LiteLlmGateway implements LlmGateway {
 
   async generate(request: GenerateRequest): Promise<GenerateResponse> {
     const startedAt = performance.now();
-    const response = await fetch(`${this.baseUrl.replace(/\/$/, "")}/v1/chat/completions`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${this.apiKey}`
-      },
-      body: JSON.stringify({
-        model: this.model,
-        temperature: 0.2,
-        messages: [
-          {
-            role: "system",
-            content: buildSystemPrompt(request.agent, request.context)
-          },
-          {
-            role: "user",
-            content: request.prompt
-          }
-        ]
-      })
-    });
+    let response: Response;
+
+    try {
+      response = await fetch(`${this.baseUrl.replace(/\/$/, "")}/v1/chat/completions`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${this.apiKey}`
+        },
+        body: JSON.stringify({
+          model: this.model,
+          temperature: 0.2,
+          messages: [
+            {
+              role: "system",
+              content: buildSystemPrompt(request.agent, request.context)
+            },
+            {
+              role: "user",
+              content: request.prompt
+            }
+          ]
+        })
+      });
+    } catch {
+      throw new LlmProviderError("litellm", "Nao foi possivel conectar ao LiteLLM. Verifique gateway, rede e chave configurada.");
+    }
 
     if (!response.ok) {
-      const message = await response.text();
-      throw new Error(`LiteLLM request failed with status ${response.status}: ${message}`);
+      throw new LlmProviderError(
+        "litellm",
+        `LiteLLM retornou HTTP ${response.status}. Verifique gateway, chave e modelo configurados.`
+      );
     }
 
     const data = (await response.json()) as {
@@ -123,14 +143,23 @@ export class GoogleLlmGateway implements LlmGateway {
       apiKey: this.apiKey
     });
 
-    const result = await generateText({
-      model: google(this.model),
-      system: buildSystemPrompt(request.agent, request.context),
-      prompt: request.prompt,
-      temperature: 0.2,
-      maxOutputTokens: 900,
-      maxRetries: 1
-    });
+    let result: Awaited<ReturnType<typeof generateText>>;
+
+    try {
+      result = await generateText({
+        model: google(this.model),
+        system: buildSystemPrompt(request.agent, request.context),
+        prompt: request.prompt,
+        temperature: 0.2,
+        maxOutputTokens: 900,
+        maxRetries: 1
+      });
+    } catch (cause) {
+      throw new LlmProviderError(
+        "google",
+        `Google Gemini nao conseguiu gerar a resposta (${providerFailureReason(cause)}). Verifique a chave do Google AI Studio, quota e modelo ${this.model}.`
+      );
+    }
 
     return {
       answer: result.text || "Google Gemini retornou uma resposta vazia.",
@@ -192,4 +221,36 @@ function estimateLocalTokenUsage(prompt: string, context: string, answer: string
 
 function estimateTokens(text: string) {
   return Math.ceil(text.length / 4);
+}
+
+function providerFailureReason(cause: unknown) {
+  const status = extractStatus(cause);
+
+  if (status) {
+    return `HTTP ${status}`;
+  }
+
+  if (cause instanceof Error && cause.name) {
+    return cause.name;
+  }
+
+  return "falha do provedor";
+}
+
+function extractStatus(cause: unknown): number | undefined {
+  if (!cause || typeof cause !== "object") {
+    return undefined;
+  }
+
+  const status = (cause as { status?: unknown; statusCode?: unknown; response?: { status?: unknown } }).status;
+  const statusCode = (cause as { statusCode?: unknown; response?: { status?: unknown } }).statusCode;
+  const responseStatus = (cause as { response?: { status?: unknown } }).response?.status;
+
+  for (const candidate of [status, statusCode, responseStatus]) {
+    if (typeof candidate === "number" && Number.isFinite(candidate)) {
+      return candidate;
+    }
+  }
+
+  return undefined;
 }

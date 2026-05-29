@@ -76,6 +76,7 @@ export class AgentOrchestrator {
         agentId: input.agentId,
         prompt: input.prompt,
         answer: completion.answer,
+        reasoningSummary: buildReasoningSummary(context, completion.provider, completion.model, safetyFlags),
         model: completion.model,
         provider: completion.provider,
         tokenUsage: completion.tokenUsage,
@@ -150,6 +151,46 @@ export class AgentOrchestrator {
   listAgents() {
     return Object.values(agentCatalog);
   }
+}
+
+function buildReasoningSummary(
+  context: Awaited<ReturnType<RagService["retrieve"]>>,
+  provider: AgentRun["provider"],
+  model: string,
+  safetyFlags: AgentRun["safetyFlags"]
+) {
+  const summary: string[] = [];
+  const mostRelevantContext = context[0];
+
+  if (mostRelevantContext) {
+    summary.push(
+      `Busquei ${context.length} trecho(s) na base de conhecimento. O mais relevante foi "${mostRelevantContext.title}" (${Math.round(
+        mostRelevantContext.score * 100
+      )}% de similaridade).`
+    );
+  } else {
+    summary.push("Nao encontrei documentos relevantes na base. A resposta marca essa lacuna quando o contexto interno for insuficiente.");
+  }
+
+  summary.push(`Enviei a tarefa para ${providerLabel(provider)} usando o modelo ${model}.`);
+
+  if (safetyFlags.length > 0) {
+    summary.push(`A governanca encontrou ${safetyFlags.length} sinal(is) de risco: ${safetyFlags.map((flag) => flag.code).join(", ")}.`);
+  } else {
+    summary.push("A governanca nao encontrou segredo, credencial ou dado restrito na resposta gerada.");
+  }
+
+  summary.push("Registrei trace, tempo, tokens e avaliacao para auditoria.");
+  return summary;
+}
+
+function providerLabel(provider: AgentRun["provider"]) {
+  const labels: Record<AgentRun["provider"], string> = {
+    mock: "IA simulada",
+    google: "Google Gemini",
+    litellm: "LiteLLM"
+  };
+  return labels[provider];
 }
 
 async function recordTraceSpan<T>(

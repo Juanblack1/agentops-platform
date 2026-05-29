@@ -130,7 +130,7 @@ function isExtensionOptionalForMime(format: UploadedDocumentFormat, extension: s
 }
 
 async function extractPdfText(buffer: Buffer) {
-  ensurePdfTextExtractionGlobals();
+  await ensurePdfTextExtractionGlobals();
   const { PDFParse } = await import("pdf-parse");
   const parser = new PDFParse({
     data: new Uint8Array(buffer),
@@ -148,14 +148,26 @@ async function extractPdfText(buffer: Buffer) {
   }
 }
 
-function ensurePdfTextExtractionGlobals() {
+async function ensurePdfTextExtractionGlobals() {
   const globals = globalThis as Record<string, unknown>;
 
   if (globals.DOMMatrix) {
     return;
   }
 
+  try {
+    const canvas = await import("@napi-rs/canvas");
+    globals.DOMMatrix = canvas.DOMMatrix;
+    globals.ImageData = canvas.ImageData;
+    globals.Path2D = canvas.Path2D;
+    return;
+  } catch {
+    // Text extraction does not render pages, but pdfjs needs these globals during module initialization.
+  }
+
   globals.DOMMatrix = LightweightDOMMatrix;
+  globals.ImageData = LightweightImageData;
+  globals.Path2D = LightweightPath2D;
 }
 
 class LightweightDOMMatrix {
@@ -201,6 +213,16 @@ class LightweightDOMMatrix {
     return this;
   }
 }
+
+class LightweightImageData {
+  constructor(
+    readonly data: unknown,
+    readonly width: number,
+    readonly height: number
+  ) {}
+}
+
+class LightweightPath2D {}
 
 async function extractDocxText(buffer: Buffer) {
   try {

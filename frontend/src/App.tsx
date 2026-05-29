@@ -89,19 +89,6 @@ export default function App() {
   const [outboxMessages, setOutboxMessages] = useState<OutboxMessage[]>([]);
   const [policies, setPolicies] = useState<GovernancePolicy[]>([]);
   const [system, setSystem] = useState<SystemStatus | null>(null);
-  const [mastra, setMastra] = useState<{
-    registeredAgents: string[];
-    registeredTools: string[];
-    registeredWorkflows: string[];
-    model: string;
-    mode: string;
-    studio: {
-      apiCommand: string;
-      studioCommand: string;
-      apiUrl: string;
-      studioUrl: string;
-    };
-  } | null>(null);
   const [apiKey, setApiKey] = useState(() => api.getApiKey());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -113,17 +100,15 @@ export default function App() {
     setError("");
     setAuthNotice("");
     try {
-      const [systemResponse, agentsResponse, mastraResponse, policiesResponse] = await Promise.all([
+      const [systemResponse, agentsResponse, policiesResponse] = await Promise.all([
         api.system(),
         api.agents(),
-        api.mastra(),
         api.policies()
       ]);
 
       setPolicies(policiesResponse.data);
       setSystem(systemResponse.data);
       setAgents(agentsResponse.data);
-      setMastra(mastraResponse.data);
 
       if (systemResponse.data.authRequired && !api.getApiKey()) {
         resetOperationalState();
@@ -240,8 +225,8 @@ export default function App() {
 
         <div className="runtime-card">
           <span className="eyebrow">Status</span>
-          <strong>{mastra ? "Agentes prontos" : "Aguardando API"}</strong>
-          <small>{mastra?.registeredAgents.length ?? 0} agentes disponiveis</small>
+          <strong>{agents.length > 0 ? "Agentes prontos" : "Aguardando API"}</strong>
+          <small>{agents.length} agentes disponiveis</small>
         </div>
       </aside>
 
@@ -253,9 +238,9 @@ export default function App() {
             <p className="page-summary">{summaryFor(activeView)}</p>
           </div>
           <div className="topbar-actions">
-            <div className="connection-chip" title="Backend e provider ativo">
+            <div className="connection-chip" title="Status da API">
               <RadioTower size={16} />
-              <span>{system ? `${llmProviderLabel(system.llmProvider)} / ${vectorStoreLabel(system.vectorStore)}` : "Conectando"}</span>
+              <span>{system ? "API conectada" : "Conectando"}</span>
             </div>
             <label className="api-key-control">
               <KeyRound size={16} />
@@ -312,8 +297,6 @@ export default function App() {
             criticalTickets={criticalTickets}
             ticketApprovalCount={ticketApprovalCount}
             runs={runs}
-            mastra={mastra}
-            system={system}
             hasOperationalData={hasOperationalData}
             authRequiredWithoutKey={authRequiredWithoutKey}
             loading={loading}
@@ -346,8 +329,6 @@ function CommandCenter({
   criticalTickets,
   ticketApprovalCount,
   runs,
-  mastra,
-  system,
   hasOperationalData,
   authRequiredWithoutKey,
   loading,
@@ -357,20 +338,6 @@ function CommandCenter({
   criticalTickets: number;
   ticketApprovalCount: number;
   runs: AgentRun[];
-  mastra: {
-    registeredAgents: string[];
-    registeredTools: string[];
-    registeredWorkflows: string[];
-    model: string;
-    mode: string;
-    studio: {
-      apiCommand: string;
-      studioCommand: string;
-      apiUrl: string;
-      studioUrl: string;
-    };
-  } | null;
-  system: SystemStatus | null;
   hasOperationalData: boolean;
   authRequiredWithoutKey: boolean;
   loading: boolean;
@@ -545,12 +512,12 @@ function CommandCenter({
                   <strong>{run.agentId}</strong>
                   <p>{run.prompt}</p>
                   <div className="tag-row">
-                    <span>trace {run.traceId.slice(0, 8)}</span>
-                    <span>{run.provider}</span>
+                    <span>{run.retrievedContext.length} fonte(s)</span>
+                    <span>{run.safetyFlags.length} alerta(s)</span>
                     {run.tokenUsage?.totalTokens ? <span>{run.tokenUsage.totalTokens} tokens</span> : null}
                   </div>
                 </div>
-                <span>{run.model}</span>
+                <span>{formatDate(run.createdAt)}</span>
               </article>
             ))}
             {runs.length === 0 ? (
@@ -566,38 +533,19 @@ function CommandCenter({
           </div>
         </div>
 
-        <div className="panel runtime-panel">
+        <div className="panel operations-help-panel">
           <div className="panel-heading">
             <div>
-              <span className="eyebrow">Ambiente</span>
-              <h2>Pronto para operar</h2>
+              <span className="eyebrow">Como usar</span>
+              <h2>Fluxo de operacao</h2>
             </div>
-            <span className={system ? "status-dot ok" : "status-dot"} aria-label={system ? "Backend disponivel" : "Backend indisponivel"} />
-          </div>
-          <div className="runtime-grid">
-            <RuntimeItem label="IA" value={llmProviderLabel(system?.llmProvider)} />
-            <RuntimeItem label="Modelo" value={system?.llmModel ?? mastra?.model ?? "Aguardando"} />
-            <RuntimeItem label="Dados" value={dataStoreLabel(system?.dataStore)} />
-            <RuntimeItem label="Contexto" value={vectorStoreLabel(system?.vectorStore)} />
-          </div>
-          <div className="provider-note">
-            <ShieldCheck size={18} />
-            <span>
-              {system?.llmProvider === "google"
-                ? "Gemini esta ativo no backend. A chave do provedor fica no ambiente da Vercel, nao no navegador."
-                : "A IA real ainda nao esta ativa. Configure o provedor antes de usar em producao."}
-            </span>
-          </div>
-          <div className="runtime-list">
-            <span>{mastra?.registeredAgents.length ?? 0} agentes</span>
-            <span>{metrics.averageQualityScore}% qualidade media</span>
-            <span>{metrics.averageLatencyMs} ms em media</span>
+            <Route size={20} />
           </div>
           <div className="glossary-list">
-            <GlossaryItem term="Agente" text="Um papel especializado, como suporte, TI ou compliance." />
-            <GlossaryItem term="Contexto" text="Trechos da base que sustentam a resposta." />
-            <GlossaryItem term="Revisao" text="Aprovacao antes de liberar respostas com risco." />
-            <GlossaryItem term="Auditoria" text="Registro de decisoes, fontes e eventos." />
+            <GlossaryItem term="1. Conhecimento" text="Adicione regras e procedimentos aprovados pela empresa." />
+            <GlossaryItem term="2. Pedido" text="Registre o problema que precisa de triagem ou resposta." />
+            <GlossaryItem term="3. Resposta" text="Escolha o agente adequado e confira as fontes usadas." />
+            <GlossaryItem term="4. Revisao" text="Aprove respostas sensiveis antes de liberar." />
           </div>
         </div>
       </div>
@@ -903,7 +851,6 @@ function KnowledgeBase({
               <div className="tag-row">
                 <span>{classificationLabel(document.classification)}</span>
                 <span>{document.chunks.length} trecho(s)</span>
-                {document.rawStorage ? <span>{document.rawStorage.provider}</span> : null}
               </div>
             </article>
           ))}
@@ -1154,9 +1101,6 @@ function AgentsPanel({
         {latestRun ? (
           <div className="answer-box">
             <div className="tag-row">
-              <span>trace {latestRun.traceId.slice(0, 8)}</span>
-              <span>{latestRun.provider}</span>
-              <span>{latestRun.model}</span>
               <span>{latestRun.latencyMs} ms</span>
               <span>{latestRun.retrievedContext.length} trechos consultados</span>
               {latestRun.tokenUsage?.totalTokens ? <span>{latestRun.tokenUsage.totalTokens} tokens</span> : null}
@@ -1186,8 +1130,7 @@ function RunExplainabilityPanel({ run, evaluation }: { run: AgentRun; evaluation
         <span className="pill">sem pensamento privado</span>
       </div>
       <p className="explainability-note">
-        A tela mostra contexto usado, etapas tecnicas, avaliacao e erros seguros do provedor. Ela nao exibe cadeia de pensamento
-        interna do modelo.
+        A tela mostra contexto usado, etapas executadas, avaliacao e alertas de seguranca. Ela nao exibe raciocinio privado.
       </p>
 
       <div className="reasoning-list">
@@ -1253,11 +1196,11 @@ function buildFallbackRunSummary(run: AgentRun) {
     run.retrievedContext.length > 0
       ? `Foram consultados ${run.retrievedContext.length} trecho(s) da base de conhecimento.`
       : "Nenhum trecho da base foi recuperado para esta pergunta.",
-    `A resposta foi gerada por ${llmProviderLabel(run.provider)} usando ${run.model}.`,
+    "A resposta foi gerada e registrada com historico de execucao.",
     run.safetyFlags.length > 0
       ? `A governanca encontrou ${run.safetyFlags.length} alerta(s) de seguranca.`
       : "A governanca nao encontrou alerta de seguranca.",
-    "O trace registrou as etapas tecnicas, duracao e metadados da execucao."
+    "O historico registrou etapas, duracao e dados de auditoria."
   ];
 }
 
@@ -1554,15 +1497,6 @@ function Metric({
   );
 }
 
-function RuntimeItem({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="runtime-item">
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
-}
-
 function EmptyState({ title = "Sem dados", text }: { title?: string; text: string }) {
   return (
     <div className="empty-state">
@@ -1647,33 +1581,6 @@ function ticketStatusLabel(value: Ticket["status"]) {
     answered: "Respondido"
   };
   return labels[value];
-}
-
-function llmProviderLabel(value?: string) {
-  const labels: Record<string, string> = {
-    mock: "IA simulada",
-    google: "Gemini",
-    litellm: "LiteLLM"
-  };
-  return value ? (labels[value] ?? value) : "Aguardando";
-}
-
-function dataStoreLabel(value?: string) {
-  const labels: Record<string, string> = {
-    memory: "Temporario",
-    file: "Arquivo local",
-    postgres: "Banco de dados"
-  };
-  return value ? (labels[value] ?? value) : "Aguardando";
-}
-
-function vectorStoreLabel(value?: string) {
-  const labels: Record<string, string> = {
-    memory: "Contexto temporario",
-    qdrant: "Busca vetorial",
-    pgvector: "Busca semantica"
-  };
-  return value ? (labels[value] ?? value) : "Aguardando";
 }
 
 function formatDate(value: string) {

@@ -5,12 +5,11 @@ type BuildServer = typeof import("../backend/dist/server.js").buildServer;
 
 let appPromise: ReturnType<BuildServer> | undefined;
 
-function applyVercelDefaults() {
+export function applyVercelDefaults(source: NodeJS.ProcessEnv = process.env) {
   const defaults: Record<string, string> = {
     DATA_STORE: "memory",
     DOCUMENT_STORAGE: "local",
     DOCUMENT_STORAGE_DIR: "/tmp/agentops-uploads",
-    LLM_PROVIDER: "mock",
     GOOGLE_GENERATIVE_AI_MODEL: "gemini-2.5-flash",
     MASTRA_MODEL: "google/gemini-2.5-flash",
     VECTOR_STORE: "memory",
@@ -19,7 +18,7 @@ function applyVercelDefaults() {
   };
 
   for (const [key, value] of Object.entries(defaults)) {
-    process.env[key] ??= value;
+    source[key] ??= value;
   }
 }
 

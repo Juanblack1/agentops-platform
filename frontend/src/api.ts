@@ -16,7 +16,9 @@ import type {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.DEV ? "http://localhost:3333" : "");
 const API_KEY_STORAGE_KEY = "agentops.apiKey";
+const API_KEY_CLEARED_STORAGE_KEY = "agentops.apiKeyCleared";
 const API_KEY_LEGACY_STORAGE_KEY = "agentops.apiKey";
+const DEFAULT_API_KEY = (import.meta.env.VITE_AGENTOPS_DEFAULT_API_KEY ?? "").trim();
 let volatileApiKey = "";
 
 type JsonRequestOptions = RequestInit & {
@@ -41,6 +43,10 @@ function getStoredApiKey() {
     return sessionValue;
   }
 
+  if (readSessionValue(API_KEY_CLEARED_STORAGE_KEY) === "true") {
+    return volatileApiKey;
+  }
+
   const legacyValue = readLocalValue(API_KEY_LEGACY_STORAGE_KEY);
 
   if (legacyValue) {
@@ -49,7 +55,11 @@ function getStoredApiKey() {
     removeLocalValue(API_KEY_LEGACY_STORAGE_KEY);
   }
 
-  return legacyValue ?? volatileApiKey;
+  if (legacyValue) {
+    return legacyValue;
+  }
+
+  return volatileApiKey || DEFAULT_API_KEY;
 }
 
 function apiKeyHeaders() {
@@ -249,8 +259,10 @@ function setStoredApiKey(value: string) {
   volatileApiKey = nextValue;
   if (nextValue) {
     writeSessionValue(API_KEY_STORAGE_KEY, nextValue);
+    removeSessionValue(API_KEY_CLEARED_STORAGE_KEY);
   } else {
     removeSessionValue(API_KEY_STORAGE_KEY);
+    writeSessionValue(API_KEY_CLEARED_STORAGE_KEY, "true");
   }
   removeLocalValue(API_KEY_LEGACY_STORAGE_KEY);
 }

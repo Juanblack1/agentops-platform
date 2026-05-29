@@ -10,9 +10,17 @@ const managedKeys = [
   "GOOGLE_GENERATIVE_AI_API_KEY",
   "GOOGLE_GENERATIVE_AI_MODEL",
   "MASTRA_MODEL",
-  "API_KEYS"
+  "API_KEYS",
+  "VITE_AGENTOPS_DEFAULT_API_KEY"
 ];
-const requiredKeys = ["LLM_PROVIDER", "GOOGLE_GENERATIVE_AI_API_KEY", "GOOGLE_GENERATIVE_AI_MODEL", "MASTRA_MODEL", "API_KEYS"];
+const requiredKeys = [
+  "LLM_PROVIDER",
+  "GOOGLE_GENERATIVE_AI_API_KEY",
+  "GOOGLE_GENERATIVE_AI_MODEL",
+  "MASTRA_MODEL",
+  "API_KEYS",
+  "VITE_AGENTOPS_DEFAULT_API_KEY"
+];
 
 const project = JSON.parse(await readFile(join(rootDir, ".vercel", "project.json"), "utf8"));
 const localEnv = parseDotenv(await readFile(join(rootDir, "backend", ".env"), "utf8"));
@@ -24,7 +32,8 @@ const values = {
   GOOGLE_GENERATIVE_AI_API_KEY: valueOf("GOOGLE_GENERATIVE_AI_API_KEY"),
   GOOGLE_GENERATIVE_AI_MODEL: valueOf("GOOGLE_GENERATIVE_AI_MODEL", "gemini-2.5-flash"),
   MASTRA_MODEL: valueOf("MASTRA_MODEL", "google/gemini-2.5-flash"),
-  API_KEYS: valueOf("API_KEYS", adminApiKey ? `admin:${adminApiKey}` : undefined)
+  API_KEYS: valueOf("API_KEYS", adminApiKey ? `admin:${adminApiKey}` : undefined),
+  VITE_AGENTOPS_DEFAULT_API_KEY: valueOf("VITE_AGENTOPS_DEFAULT_API_KEY", adminApiKey || undefined)
 };
 
 for (const key of requiredKeys) {

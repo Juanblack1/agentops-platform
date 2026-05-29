@@ -381,6 +381,7 @@ function PublicSupportApp() {
       message: example.message
     }));
     setError("");
+    setResponse(null);
   }
 
   async function submitRequest(event: FormEvent<HTMLFormElement>) {
@@ -423,6 +424,9 @@ function PublicSupportApp() {
     setError("");
   }
 
+  const createdResponse = response?.status === "created" ? response : null;
+  const needsMoreInfoResponse = response?.status === "needs_more_info" ? response : null;
+
   return (
     <main className="public-shell">
       <section className="public-workspace" aria-labelledby="public-title">
@@ -445,8 +449,8 @@ function PublicSupportApp() {
             <span className="eyebrow">Canal do usuario final</span>
             <h1 id="public-title">Envie seu pedido e receba uma resposta agora.</h1>
             <p>
-              Descreva o que aconteceu em linguagem simples. A plataforma registra o protocolo e usa a IA para devolver
-              uma orientacao objetiva no mesmo fluxo.
+              Descreva o que aconteceu em linguagem simples. Quando houver informacao suficiente, a plataforma registra
+              o protocolo e devolve uma orientacao objetiva no mesmo fluxo.
             </p>
             <div className="public-assurance" aria-label="Garantias do atendimento">
               <span>
@@ -459,13 +463,26 @@ function PublicSupportApp() {
               </span>
               <span>
                 <ShieldCheck size={18} />
-                Pedido registrado para acompanhamento
+                Protocolo quando o pedido estiver claro
               </span>
             </div>
           </section>
 
           <section className="public-panel" aria-label="Enviar pedido">
-            {!response ? (
+            {!createdResponse ? (
+              <>
+                {needsMoreInfoResponse ? (
+                  <div className="public-guidance" role="status">
+                    <div className="public-answer-heading">
+                      <div>
+                        <span className="eyebrow">Detalhes necessarios</span>
+                        <h2>Complete o pedido antes do protocolo</h2>
+                      </div>
+                      <AlertCircle size={24} />
+                    </div>
+                    <pre>{needsMoreInfoResponse.answer}</pre>
+                  </div>
+                ) : null}
               <form onSubmit={submitRequest} className="public-form">
                 <div className="public-form-grid">
                   <label>
@@ -532,22 +549,23 @@ function PublicSupportApp() {
                   ) : (
                     <>
                       <Send size={18} />
-                      Enviar pedido
+                      {needsMoreInfoResponse ? "Reenviar pedido completo" : "Enviar pedido"}
                     </>
                   )}
                 </button>
               </form>
+              </>
             ) : (
               <div className="public-answer">
                 <div className="public-answer-heading">
                   <div>
                     <span className="eyebrow">Resposta recebida</span>
-                    <h2>Protocolo {shortId(response.requestId)}</h2>
+                    <h2>Protocolo {shortId(createdResponse.requestId)}</h2>
                   </div>
                   <CheckCircle2 size={24} />
                 </div>
-                <pre>{response.answer}</pre>
-                {response.needsReview ? (
+                <pre>{createdResponse.answer}</pre>
+                {createdResponse.needsReview ? (
                   <div className="notice warning public-notice" role="status">
                     <ShieldCheck size={18} />
                     <span>Este pedido tambem foi marcado para conferencia interna.</span>

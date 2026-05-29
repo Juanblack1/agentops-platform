@@ -55,7 +55,7 @@ const runAgentSchema = z.object({
 });
 
 const publicSupportRequestSchema = z.object({
-  name: z.string().trim().min(2).max(80).optional().default(""),
+  name: z.string().trim().max(80).optional().default(""),
   contact: z.string().trim().max(120).optional().default(""),
   subject: z.string().trim().min(3).max(140),
   message: z.string().trim().min(10).max(2000)
@@ -108,6 +108,20 @@ export async function registerRoutes(app: FastifyInstance, services: RouteServic
 
   app.post("/api/public/support-request", async (request, reply) => {
     const body = publicSupportRequestSchema.parse(request.body);
+    const readiness = assessPublicSupportReadiness(body);
+
+    if (readiness.status === "needs_more_info") {
+      return reply.code(200).send({
+        data: {
+          status: "needs_more_info",
+          answer: buildPublicClarificationAnswer(readiness.missingFields),
+          missingFields: readiness.missingFields,
+          createdAt: new Date().toISOString(),
+          needsReview: false
+        }
+      });
+    }
+
     const customer = body.name || "Usuario final";
     const ticket = await services.tickets.createTicket({
       subject: body.subject,
@@ -126,6 +140,7 @@ export async function registerRoutes(app: FastifyInstance, services: RouteServic
 
     return reply.code(201).send({
       data: {
+        status: "created",
         requestId: ticket.id,
         answer: run.answer,
         createdAt: run.createdAt,
@@ -435,4 +450,63 @@ function buildPublicSupportPrompt(input: {
 
 function buildPublicTicketDescription(input: { contact: string; message: string }) {
   return [`Contato: ${input.contact || "Nao informado"}`, "", input.message].join("\n");
+}
+
+function assessPublicSupportReadiness(input: { subject: string; message: string }) {
+  const text = normalizePublicText(`${input.subject} ${input.message}`);
+  const missingFields: string[] = [];
+
+  if (isDataUpdateRequest(text)) {
+    if (!hasSpecificServiceReference(text)) {
+      missingFields.push("qual plataforma, aplicativo, portal ou servico deve ser atualizado");
+    }
+
+    if (!hasSpecificDataField(text)) {
+      missingFields.push("quais dados precisam ser alterados, como email, telefone, endereco ou nome");
+    }
+  }
+
+  if (missingFields.length === 0) {
+    return {
+      status: "ready" as const
+    };
+  }
+
+  return {
+    status: "needs_more_info" as const,
+    missingFields
+  };
+}
+
+function buildPublicClarificationAnswer(missingFields: string[]) {
+  return [
+    "Antes de abrir um protocolo, preciso de mais detalhes para registrar o pedido corretamente.",
+    "",
+    "Complete o pedido informando:",
+    ...missingFields.map((field) => `- ${field}.`),
+    "",
+    "Depois de complementar a descricao, envie novamente pelo mesmo formulario."
+  ].join("\n");
+}
+
+function isDataUpdateRequest(text: string) {
+  return (
+    /(atualizar|atualizacao|alterar|alteracao|corrigir|correcao|trocar|mudar|editar)/.test(text) &&
+    /(cadastro|cadastral|dados|perfil|conta)/.test(text)
+  );
+}
+
+function hasSpecificServiceReference(text: string) {
+  return /(portal|plataforma|sistema|servico|aplicativo|app|site|conta|crm|erp|email corporativo)/.test(text);
+}
+
+function hasSpecificDataField(text: string) {
+  return /(email|e-mail|telefone|celular|endereco|nome|cpf|cnpj|rg|senha|cargo|setor|departamento)/.test(text);
+}
+
+function normalizePublicText(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
 }

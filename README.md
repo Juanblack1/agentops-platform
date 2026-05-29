@@ -305,7 +305,7 @@ O projeto inclui automacao com `@vercel/sdk` para atualizar as variaveis de Prod
 npm run vercel:sync-env
 ```
 
-Esse comando le `backend/.env`, `backend/.env.local.admin-key`, `.vercel/project.json` e o token ja autenticado pela Vercel CLI. As variaveis sincronizadas sao `LLM_PROVIDER`, `GOOGLE_GENERATIVE_AI_API_KEY`, `GOOGLE_GENERATIVE_AI_MODEL`, `MASTRA_MODEL` e `API_KEYS`.
+Esse comando le `backend/.env`, `backend/.env.local.admin-key`, `.vercel/project.json` e o token ja autenticado pela Vercel CLI. As variaveis sincronizadas sao `LLM_PROVIDER`, `GOOGLE_GENERATIVE_AI_API_KEY`, `GOOGLE_GENERATIVE_AI_MODEL`, `MASTRA_MODEL`, `API_KEYS` e `VITE_AGENTOPS_DEFAULT_API_KEY`.
 
 Para iniciar o MCP local da Vercel via SDK:
 

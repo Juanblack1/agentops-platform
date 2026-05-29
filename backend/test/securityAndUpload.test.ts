@@ -127,6 +127,7 @@ describe("security and upload API", () => {
 
     expect(response.statusCode).toBe(201);
     const payload = response.json().data;
+    expect(payload.status).toBe("created");
     expect(payload.requestId).toEqual(expect.any(String));
     expect(payload.answer).toContain("Recebemos seu pedido.");
     expect(payload.createdAt).toEqual(expect.any(String));
@@ -143,6 +144,46 @@ describe("security and upload API", () => {
       }
     });
     expect(protectedRun.statusCode).toBe(401);
+
+    await app.close();
+  });
+
+  it("asks for more public request details before creating a vague data-update ticket", async () => {
+    const app = await buildServer(
+      loadConfig({
+        NODE_ENV: "test",
+        DATA_STORE: "memory",
+        API_KEYS: "operator:operator-key,reviewer:reviewer-key,admin:admin-key",
+        LLM_PROVIDER: "mock"
+      } as NodeJS.ProcessEnv)
+    );
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/public/support-request",
+      payload: {
+        subject: "Atualizacao cadastral",
+        message: "Preciso atualizar meus dados cadastrais e quero saber qual e o proximo passo."
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    const payload = response.json().data;
+    expect(payload.status).toBe("needs_more_info");
+    expect(payload.requestId).toBeUndefined();
+    expect(payload.answer).toContain("Antes de abrir um protocolo");
+    expect(payload.missingFields).toContain("qual plataforma, aplicativo, portal ou servico deve ser atualizado");
+    expect(payload.missingFields).toContain("quais dados precisam ser alterados, como email, telefone, endereco ou nome");
+
+    const tickets = await app.inject({
+      method: "GET",
+      url: "/api/tickets",
+      headers: {
+        "x-api-key": "admin-key"
+      }
+    });
+    expect(tickets.statusCode).toBe(200);
+    expect(tickets.json().data).toEqual([]);
 
     await app.close();
   });

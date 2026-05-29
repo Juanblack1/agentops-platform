@@ -124,7 +124,18 @@ export interface OutboxMessage {
   deliveredAt?: string;
 }
 
-export interface PublicSupportResponse {
+export type PublicSupportResponse = PublicSupportNeedsMoreInfoResponse | PublicSupportCreatedResponse;
+
+export interface PublicSupportNeedsMoreInfoResponse {
+  status: "needs_more_info";
+  answer: string;
+  missingFields: string[];
+  createdAt: string;
+  needsReview: false;
+}
+
+export interface PublicSupportCreatedResponse {
+  status: "created";
   requestId: string;
   answer: string;
   createdAt: string;

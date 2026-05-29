@@ -39,20 +39,32 @@ export class PostgresVectorStore implements VectorStore {
   async search(vector: number[], topK: number): Promise<VectorSearchResult[]> {
     await this.migrate();
 
-    const result = await this.pool.query<{ payload: VectorPoint["payload"]; score: number }>(
-      `
-        select payload, 1 - (embedding <=> $1::vector) as score
-        from agentops_vector_points
-        order by embedding <=> $1::vector
-        limit $2;
-      `,
-      [toVectorLiteral(vector, this.dimensions), topK]
-    );
+    const client = await this.pool.connect();
+    try {
+      await client.query("begin");
+      await client.query("set local enable_indexscan = off;");
+      await client.query("set local enable_bitmapscan = off;");
+      const result = await client.query<{ payload: VectorPoint["payload"]; score: number }>(
+        `
+          select payload, 1 - (embedding <=> $1::vector) as score
+          from agentops_vector_points
+          order by embedding <=> $1::vector
+          limit $2;
+        `,
+        [toVectorLiteral(vector, this.dimensions), topK]
+      );
+      await client.query("commit");
 
-    return result.rows.map((row) => ({
-      payload: row.payload,
-      score: Number(row.score)
-    }));
+      return result.rows.map((row) => ({
+        payload: row.payload,
+        score: Number(row.score)
+      }));
+    } catch (error) {
+      await client.query("rollback");
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   async close() {
